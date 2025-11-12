@@ -3,10 +3,10 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   // ⚠️ Para Flutter Web local, usa localhost con el puerto correcto de tu backend Express
-  final String baseUrl = 'http://localhost:57100/api';
+  final String baseUrl = 'http://localhost:4000/api';
 
   // =====================================================
-  // 🟦 LOGIN (modificado para devolver rol y nombre)
+  // 🟦 LOGIN (devuelve id, nombre, rol, telefono)
   // =====================================================
   Future<Map<String, dynamic>?> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/login');
@@ -24,10 +24,24 @@ class AuthService {
         final data = jsonDecode(response.body);
         print('✅ Login exitoso: $data');
 
-        // 🔹 Asegúrate que tu backend devuelva "nombre" y "rol"
+        // 🔹 Estructura esperada del backend:
+        // {
+        //   "token": "jwt-token",
+        //   "user": {
+        //     "id": 1,
+        //     "nombre": "Juan Pérez",
+        //     "rol": "empleador",
+        //     "telefono": "0999999999"
+        //   }
+        // }
+
+        final user = data['user'] ?? data; // por compatibilidad
+
         return {
-          'rol': data['rol'],
-          'nombre': data['nombre'],
+          'id': user['id'],
+          'nombre': user['nombre'],
+          'rol': user['rol'],
+          'telefono': user['telefono'] ?? 'No registrado',
         };
       } else {
         final data = jsonDecode(response.body);

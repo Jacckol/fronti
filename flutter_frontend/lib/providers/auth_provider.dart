@@ -4,14 +4,18 @@ import 'package:flutter_frontend/services/auth_services.dart';
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
 
+  // ===== Estados =====
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  String? _role; // guarda el rol del usuario logueado
+  String? _role;      // rol del usuario
   String? get role => _role;
 
-  String? _userName; // guarda el nombre del usuario logueado
+  String? _userName;  // nombre del usuario
   String? get userName => _userName;
+
+  int? _userId;       // id del usuario
+  int? get userId => _userId;
 
   set isLoading(bool value) {
     _isLoading = value;
@@ -22,12 +26,11 @@ class AuthProvider with ChangeNotifier {
   Future<String?> login(String username, String password) async {
     isLoading = true;
 
-    // 🔹 login devuelve un mapa con rol y nombre
     final response = await _authService.login(username, password);
-
     if (response != null) {
       _role = response['rol'];
       _userName = response['nombre'];
+      _userId = response['id']; // ✅ Guardar ID real
       isLoading = false;
       notifyListeners();
       return _role;
@@ -38,7 +41,7 @@ class AuthProvider with ChangeNotifier {
     return null;
   }
 
-  // ===== REGISTRO USUARIO NORMAL =====
+  // ===== REGISTRO USUARIO =====
   Future<bool> registerUser(String username, String password, String email) async {
     isLoading = true;
     notifyListeners();
@@ -67,6 +70,7 @@ class AuthProvider with ChangeNotifier {
     await _authService.logout();
     _role = null;
     _userName = null;
+    _userId = null; // ✅ Limpiar ID
     notifyListeners();
   }
 }

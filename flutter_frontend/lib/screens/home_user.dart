@@ -36,14 +36,35 @@ class HomeUserScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              onPressed: () {
-                auth.logout();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const LoginScreen(rol: 'usuario'),
+              onPressed: () async {
+                // Confirmación de cierre de sesión
+                final confirmar = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Cerrar Sesión'),
+                    content: const Text('¿Seguro deseas cerrar sesión?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        child: const Text('Sí'),
+                      ),
+                    ],
                   ),
                 );
+
+                if (confirmar == true) {
+                  await auth.logout();
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const LoginScreen(rol: 'usuario'), // ✅ Aquí corregido
+                    ),
+                  );
+                }
               },
               icon: const Icon(Icons.logout, color: Colors.black87),
               label: const Text(
@@ -79,8 +100,6 @@ class HomeUserScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 30),
-
-            // Tarjetas de opciones
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,

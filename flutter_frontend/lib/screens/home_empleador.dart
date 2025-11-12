@@ -2,15 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
+import 'ofertas_screen.dart';
+import 'perfil_empleador_screen.dart';
 
 class HomeEmpleadorScreen extends StatelessWidget {
   const HomeEmpleadorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-final auth = context.watch<AuthProvider>();
-final userName = auth.userName ?? "Usuario"; // Nombre real
-
+    final auth = context.watch<AuthProvider>();
+    final userName = auth.userName ?? "Usuario";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F7FF),
@@ -19,7 +20,7 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
         backgroundColor: Colors.white,
         elevation: 1,
         title: const Text(
-          'Portal Trabajador',
+          'Portal del Empleador',
           style: TextStyle(
             color: Color(0xFF8B5CF6),
             fontWeight: FontWeight.bold,
@@ -48,11 +49,11 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
               );
 
               if (confirmar == true) {
-                auth.logout();
+                await auth.logout();
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const LoginScreen(rol: 'empleador'),
+                    builder: (_) => const LoginScreen(rol: 'empleador'), // ✅ Corregido
                   ),
                 );
               }
@@ -71,9 +72,8 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ✨ Saludo bonito con nombre real
             Text(
-              'Bienvenido 👋',
+              'Bienvenido 👋 $userName',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -82,15 +82,13 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
             ),
             const SizedBox(height: 6),
             const Text(
-              'Bienvenido al portal de empleadores',
+              'Gestiona tu perfil y tus oportunidades',
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.black54,
               ),
             ),
             const SizedBox(height: 30),
-
-            // 🟩 Tarjetas tipo dashboard
             Expanded(
               child: GridView.count(
                 crossAxisCount: 2,
@@ -103,30 +101,53 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
                     color: Colors.blue,
                     title: 'Buscar Ofertas Laborales',
                     subtitle: 'Encuentra trabajos disponibles',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OfertasScreen(),
+                        ),
+                      );
+                    },
                   ),
                   _menuCard(
                     icon: Icons.person,
                     color: Colors.purple,
                     title: 'Mi Perfil',
                     subtitle: 'Actualiza tu información profesional',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => PerfilEmpleadorScreen(
+                            userId: 0, // Ajusta según tu lógica
+                            nombre: userName,
+                            telefono: "No registrado",
+                          ),
+                        ),
+                      );
+                    },
                   ),
                   _menuCard(
                     icon: Icons.note_alt_outlined,
                     color: Colors.green,
                     title: 'Mis Postulaciones',
-                    subtitle: 'Revisa el estado de tus postulaciones',
+                    subtitle: 'Revisa tus solicitudes enviadas',
+                    onTap: () {},
                   ),
                   _menuCard(
                     icon: Icons.calendar_today_outlined,
                     color: Colors.orange,
                     title: 'Agenda de Servicios',
-                    subtitle: 'Trabajos aceptados y próximos',
+                    subtitle: 'Próximos trabajos o reuniones',
+                    onTap: () {},
                   ),
                   _menuCard(
                     icon: Icons.account_balance_wallet_outlined,
                     color: Colors.teal,
                     title: 'Mi Billetera',
-                    subtitle: 'Ingresos y pagos recibidos',
+                    subtitle: 'Historial de pagos e ingresos',
+                    onTap: () {},
                   ),
                 ],
               ),
@@ -142,11 +163,10 @@ final userName = auth.userName ?? "Usuario"; // Nombre real
     required Color color,
     required String title,
     required String subtitle,
+    required VoidCallback onTap,
   }) {
     return InkWell(
-      onTap: () {
-        // Aquí puedes agregar la navegación de cada tarjeta
-      },
+      onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       splashColor: color.withOpacity(0.2),
       child: Container(
