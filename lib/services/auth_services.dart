@@ -2,11 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  // ⚠️ Para Flutter Web local, usa localhost con el puerto correcto de tu backend Express
+  // 🌍 URL base del backend Express
   final String baseUrl = 'http://localhost:4000/api';
 
   // =====================================================
-  // 🟦 LOGIN (devuelve id, nombre, rol, telefono)
+  // 🟦 LOGIN
   // =====================================================
   Future<Map<String, dynamic>?> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/login');
@@ -24,24 +24,14 @@ class AuthService {
         final data = jsonDecode(response.body);
         print('✅ Login exitoso: $data');
 
-        // 🔹 Estructura esperada del backend:
-        // {
-        //   "token": "jwt-token",
-        //   "user": {
-        //     "id": 1,
-        //     "nombre": "Juan Pérez",
-        //     "rol": "empleador",
-        //     "telefono": "0999999999"
-        //   }
-        // }
-
-        final user = data['user'] ?? data; // por compatibilidad
+        final user = data['user'] ?? data;
 
         return {
           'id': user['id'],
           'nombre': user['nombre'],
           'rol': user['rol'],
           'telefono': user['telefono'] ?? 'No registrado',
+          'token': data['token'] ?? '',
         };
       } else {
         final data = jsonDecode(response.body);
@@ -67,7 +57,7 @@ class AuthService {
           'nombre': username,
           'email': email,
           'password': password,
-          'rol': 'cliente', // ✅ coincide con ENUM del backend
+          'rol': 'cliente', // debe coincidir con ENUM del backend
         }),
       );
 
@@ -110,7 +100,7 @@ class AuthService {
           'nombre': username,
           'email': email,
           'password': password,
-          'rol': 'empleador', // ✅ coincide con ENUM del backend
+          'rol': 'empleador', // coincide con ENUM del backend
           'empresa': companyName,
           'ruc': ruc ?? '1234567890',
           'telefono': telefono ?? '0999999999',
@@ -133,6 +123,33 @@ class AuthService {
     } catch (e) {
       print('❌ Error en registro de empleador: $e');
       throw Exception('No se pudo registrar el empleador: $e');
+    }
+  }
+
+  // =====================================================
+  // 🟩 GUARDAR PERFIL LABORAL
+  // =====================================================
+  Future<bool> savePerfilLaboral(Map<String, dynamic> perfilData) async {
+    final url = Uri.parse('$baseUrl/perfil-laboral'); // ✅ Endpoint backend
+    try {
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode(perfilData),
+      );
+
+      print('📨 Respuesta perfil laboral: ${response.body}');
+
+      if (response.statusCode == 201) {
+        print('✅ Perfil laboral guardado correctamente');
+        return true;
+      } else {
+        print('❌ Error guardando perfil laboral: ${response.body}');
+        return false;
+      }
+    } catch (e) {
+      print('⚠️ Error de conexión al guardar perfil laboral: $e');
+      return false;
     }
   }
 
