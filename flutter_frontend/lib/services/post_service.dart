@@ -6,7 +6,7 @@ import 'package:flutter_frontend/models/post.dart';
 
 class PostService {
   Dio dio = Dio();
-  final String baseUrl = "http://localhost:57100"; // <-- backend local
+  final String baseUrl = "http://localhost:4000"; // <-- backend local
 
   Future<Response?> getAllPost() async {
     try {
