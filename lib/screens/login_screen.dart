@@ -23,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   // ======================================================
-  // 🔹 Método que se ejecuta DESPUÉS del login exitoso
+  // 🔥 LÓGICA COMPLETA POST LOGIN
   // ======================================================
   Future<void> _afterLogin(BuildContext context) async {
     final auth = context.read<AuthProvider>();
@@ -33,8 +33,28 @@ class _LoginScreenState extends State<LoginScreen> {
     final int empleadorId = auth.userId ?? 0;
     final String? token = auth.token;
 
+    // ======================================================
+    // 🔥 1. Verificar si el perfil YA EXISTE (evita el 400 repetido)
+    // ======================================================
+    if (isEmpleador && token != null) {
+      final url = Uri.parse('http://localhost:4000/api/perfil-laboral');
+
+      final resp = await http.get(
+        url,
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (resp.statusCode == 200) {
+        auth.setPerfilCompleto(true);
+
+Navigator.pushReplacementNamed(context, '/homeEmpleador');
+return;      }
+    }
+
+    // ======================================================
+    // 🔥 2. Si NO existe, mostrar formulario SOLO UNA VEZ
+    // ======================================================
     if (isEmpleador && !perfilCompleto && token != null) {
-      // Mostrar modal para completar perfil
       final wantToComplete = await showDialog<bool>(
         context: context,
         barrierDismissible: false,
@@ -57,7 +77,6 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (wantToComplete == true) {
-        // Mostrar formulario para completar perfil
         await showDialog(
           context: context,
           barrierDismissible: false,
@@ -72,7 +91,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   try {
                     data['empleadorId'] = empleadorId;
 
-                    final url = Uri.parse('http://localhost:4000/api/perfil-laboral');
+                    final url =
+                        Uri.parse('http://localhost:4000/api/perfil-laboral');
                     final response = await http.post(
                       url,
                       headers: {
@@ -83,19 +103,22 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
 
                     if (response.statusCode == 201) {
-                      // 🔹 Actualizar estado en el provider
                       auth.setPerfilCompleto(true);
 
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Perfil completado correctamente ✅')),
+                        const SnackBar(
+                            content:
+                                Text('Perfil completado correctamente ✅')),
                       );
 
-                      Navigator.of(context).pop(); // Cierra el modal
-                      Navigator.of(context).pushReplacementNamed('/homeEmpleador');
+                      Navigator.of(context).pop();
+                      Navigator.of(context)
+                          .pushReplacementNamed('/homeEmpleador');
                     } else {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Error al guardar: ${response.statusCode} ${response.body}'),
+                          content: Text(
+                              'Error al guardar: ${response.statusCode} ${response.body}'),
                         ),
                       );
                     }
@@ -116,7 +139,6 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } else {
-      // 🔹 Si ya completó el perfil, ir directo al home
       Navigator.pushReplacementNamed(
         context,
         isEmpleador ? '/homeEmpleador' : '/homeUser',
@@ -163,6 +185,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
+
+                  // ================= INPUT USER ================
                   TextFormField(
                     controller: usernameController,
                     decoration: InputDecoration(
@@ -174,9 +198,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (value) => value == null || value.isEmpty ? "* Requerido" : null,
+                    validator: (value) =>
+                        value == null || value.isEmpty ? "* Requerido" : null,
                   ),
+
                   const SizedBox(height: 20),
+
+                  // ================= INPUT CONTRASEÑA ================
                   TextFormField(
                     controller: passwordController,
                     obscureText: true,
@@ -189,9 +217,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (value) => value == null || value.isEmpty ? "* Requerido" : null,
+                    validator: (value) =>
+                        value == null || value.isEmpty ? "* Requerido" : null,
                   ),
+
                   const SizedBox(height: 24),
+
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -217,31 +248,41 @@ class _LoginScreenState extends State<LoginScreen> {
                                   await _afterLogin(context);
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Credenciales inválidas')),
+                                    const SnackBar(
+                                        content:
+                                            Text('Credenciales inválidas')),
                                   );
                                 }
                               }
                             },
                       child: auth.isLoading
-                          ? const CircularProgressIndicator(color: Colors.white)
+                          ? const CircularProgressIndicator(
+                              color: Colors.white)
                           : const Text(
                               'Login',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                     ),
                   ),
+
                   const SizedBox(height: 16),
+
                   TextButton(
                     onPressed: () {
                       if (widget.rol == 'usuario') {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => RegisterUserScreen(rol: 'usuario')),
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  RegisterUserScreen(rol: 'usuario')),
                         );
                       } else {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => RegisterEmployerScreen(rol: 'empleador')),
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  RegisterEmployerScreen(rol: 'empleador')),
                         );
                       }
                     },
