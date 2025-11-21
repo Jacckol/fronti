@@ -23,129 +23,150 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   // ======================================================
-  // 🔥 LÓGICA COMPLETA POST LOGIN
+  // 🔥 LÓGICA DESPUÉS DEL LOGIN (CORREGIDA COMPLETAMENTE)
   // ======================================================
   Future<void> _afterLogin(BuildContext context) async {
     final auth = context.read<AuthProvider>();
 
     final bool isEmpleador = auth.role == 'empleador';
-    final bool perfilCompleto = auth.perfilCompleto;
-    final int empleadorId = auth.userId ?? 0;
     final String? token = auth.token;
+    final int userId = auth.userId ?? 0;
+
+    // Si NO es empleador -> directo a su home normal
+    if (!isEmpleador || token == null) {
+      Navigator.pushReplacementNamed(
+        context,
+        isEmpleador ? '/homeEmpleador' : '/homeUser',
+      );
+      return;
+    }
 
     // ======================================================
-    // 🔥 1. Verificar si el perfil YA EXISTE (evita el 400 repetido)
+    // 1️⃣ CONSULTAR SI YA EXISTE PERFIL EN /mine
     // ======================================================
-    if (isEmpleador && token != null) {
-      final url = Uri.parse('http://localhost:4000/api/perfil-laboral');
+    bool tienePerfil = false;
 
+    try {
+      final url = Uri.parse('http://10.0.2.2:4000/api/perfil-laboral/mine');
       final resp = await http.get(
         url,
         headers: {'Authorization': 'Bearer $token'},
       );
 
       if (resp.statusCode == 200) {
-        auth.setPerfilCompleto(true);
-
-Navigator.pushReplacementNamed(context, '/homeEmpleador');
-return;      }
-    }
-
-    // ======================================================
-    // 🔥 2. Si NO existe, mostrar formulario SOLO UNA VEZ
-    // ======================================================
-    if (isEmpleador && !perfilCompleto && token != null) {
-      final wantToComplete = await showDialog<bool>(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => AlertDialog(
-          title: const Text('Completar perfil'),
-          content: const Text(
-            'Hola 👋 Para continuar es necesario completar tu perfil. ¿Deseas hacerlo ahora?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('No'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Sí'),
-            ),
-          ],
-        ),
-      );
-
-      if (wantToComplete == true) {
-        await showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => Dialog(
-            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: CompleteProfileForm(
-                token: token,
-                initialData: null,
-                onSubmit: (data, token) async {
-                  try {
-                    data['empleadorId'] = empleadorId;
-
-                    final url =
-                        Uri.parse('http://localhost:4000/api/perfil-laboral');
-                    final response = await http.post(
-                      url,
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer $token',
-                      },
-                      body: jsonEncode(data),
-                    );
-
-                    if (response.statusCode == 201) {
-                      auth.setPerfilCompleto(true);
-
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('Perfil completado correctamente ✅')),
-                      );
-
-                      Navigator.of(context).pop();
-                      Navigator.of(context)
-                          .pushReplacementNamed('/homeEmpleador');
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                              'Error al guardar: ${response.statusCode} ${response.body}'),
-                        ),
-                      );
-                    }
-                  } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Error: $e')),
-                    );
-                  }
-                },
-              ),
-            ),
-          ),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const SeleccionScreen()),
-        );
+        // Backend retorna:  { "exists": true }
+        final data = jsonDecode(resp.body);
+        tienePerfil = data["exists"] == true;
+      } else if (resp.statusCode == 404) {
+        tienePerfil = false;
       }
-    } else {
-      Navigator.pushReplacementNamed(
-        context,
-        isEmpleador ? '/homeEmpleador' : '/homeUser',
-      );
+    } catch (e) {
+      debugPrint('❌ Error consultando /mine: $e');
+      tienePerfil = false;
     }
+
+    // Si YA tiene perfil → directo al Home
+    if (tienePerfil) {
+      auth.setPerfilCompleto(true);
+      Navigator.pushReplacementNamed(context, '/homeEmpleador');
+      return;
+    }
+
+    // ======================================================
+    // 2️⃣ NO TIENE PERFIL → PREGUNTAR SI DESEA COMPLETARLO
+    // ======================================================
+    final wantToComplete = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        title: const Text('Completar perfil'),
+        content: const Text(
+          'Hola 👋 Para continuar es necesario completar tu perfil laboral. '
+          '¿Deseas hacerlo ahora?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Sí'),
+          ),
+        ],
+      ),
+    );
+
+    if (wantToComplete != true) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SeleccionScreen()),
+      );
+      return;
+    }
+
+    // ======================================================
+    // 3️⃣ MOSTRAR FORMULARIO EN UN DIALOG
+    // ======================================================
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: CompleteProfileForm(
+            token: token,
+            initialData: null,
+            onSubmit: (data, token) async {
+              try {
+                data['userId'] = userId; // opcional
+
+                final url = Uri.parse('http://10.0.2.2:4000/api/perfil-laboral');
+                final response = await http.post(
+                  url,
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': 'Bearer $token',
+                  },
+                  body: jsonEncode(data),
+                );
+
+                if (response.statusCode == 201) {
+                  auth.setPerfilCompleto(true);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Perfil completado correctamente ✅'),
+                    ),
+                  );
+
+                  Navigator.of(context).pop();
+                  Navigator.pushReplacementNamed(context, '/homeEmpleador');
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Error al guardar: ${response.statusCode} ${response.body}',
+                      ),
+                    ),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+          ),
+        ),
+      ),
+    );
   }
 
+  // ======================================================
+  // 🔥 UI DEL LOGIN
+  // ======================================================
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
@@ -186,11 +207,10 @@ return;      }
                   ),
                   const SizedBox(height: 24),
 
-                  // ================= INPUT USER ================
                   TextFormField(
                     controller: usernameController,
                     decoration: InputDecoration(
-                      labelText: 'Usuario',
+                      labelText: 'Usuario (correo)',
                       prefixIcon: const Icon(Icons.person),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -204,7 +224,6 @@ return;      }
 
                   const SizedBox(height: 20),
 
-                  // ================= INPUT CONTRASEÑA ================
                   TextFormField(
                     controller: passwordController,
                     obscureText: true,
@@ -233,7 +252,6 @@ return;      }
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 4,
-                        shadowColor: Colors.purpleAccent.withOpacity(0.2),
                       ),
                       onPressed: auth.isLoading
                           ? null
@@ -249,19 +267,22 @@ return;      }
                                 } else {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                        content:
-                                            Text('Credenciales inválidas')),
+                                      content: Text(
+                                        'Credenciales inválidas o error de conexión',
+                                      ),
+                                    ),
                                   );
                                 }
                               }
                             },
                       child: auth.isLoading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white)
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
                               'Login',
                               style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                     ),
                   ),
@@ -274,15 +295,16 @@ return;      }
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  RegisterUserScreen(rol: 'usuario')),
+                            builder: (_) => RegisterUserScreen(rol: 'usuario'),
+                          ),
                         );
                       } else {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (_) =>
-                                  RegisterEmployerScreen(rol: 'empleador')),
+                            builder: (_) =>
+                                RegisterEmployerScreen(rol: 'empleador'),
+                          ),
                         );
                       }
                     },

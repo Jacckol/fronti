@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  // 🌍 URL base del backend Express
-  final String baseUrl = 'http://localhost:4000/api';
+  // 🌍 IMPORTANTE: desde el EMULADOR, el backend de tu PC es 10.0.2.2
+  final String baseUrl = 'http://10.0.2.2:4000/api';
 
   // =====================================================
   // 🟦 LOGIN
@@ -24,14 +24,13 @@ class AuthService {
         final data = jsonDecode(response.body);
         print('✅ Login exitoso: $data');
 
-        final user = data['user'] ?? data;
-
+        // 🔹 Normalmente el backend manda algo tipo:
+        // { user: {...}, rol: 'empleador', token: '...', perfilCompleto: true/false }
         return {
-          'id': user['id'],
-          'nombre': user['nombre'],
-          'rol': user['rol'],
-          'telefono': user['telefono'] ?? 'No registrado',
+          'rol': data['rol'] ?? data['user']?['rol'],
+          'user': data['user'],
           'token': data['token'] ?? '',
+          'perfilCompleto': data['perfilCompleto'] ?? false,
         };
       } else {
         final data = jsonDecode(response.body);
@@ -57,7 +56,7 @@ class AuthService {
           'nombre': username,
           'email': email,
           'password': password,
-          'rol': 'cliente', // debe coincidir con ENUM del backend
+          'rol': 'cliente',
         }),
       );
 
@@ -100,7 +99,7 @@ class AuthService {
           'nombre': username,
           'email': email,
           'password': password,
-          'rol': 'empleador', // coincide con ENUM del backend
+          'rol': 'empleador',
           'empresa': companyName,
           'ruc': ruc ?? '1234567890',
           'telefono': telefono ?? '0999999999',
@@ -129,12 +128,15 @@ class AuthService {
   // =====================================================
   // 🟩 GUARDAR PERFIL LABORAL
   // =====================================================
-  Future<bool> savePerfilLaboral(Map<String, dynamic> perfilData) async {
-    final url = Uri.parse('$baseUrl/perfil-laboral'); // ✅ Endpoint backend
+  Future<bool> savePerfilLaboral(Map<String, dynamic> perfilData, String token) async {
+    final url = Uri.parse('$baseUrl/perfil-laboral');
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
         body: jsonEncode(perfilData),
       );
 

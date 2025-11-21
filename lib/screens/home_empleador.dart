@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'ofertas_screen.dart';
 import 'perfil_empleador_screen.dart';
+import 'mis_postulaciones_screen.dart';
 
 class HomeEmpleadorScreen extends StatelessWidget {
   const HomeEmpleadorScreen({super.key});
@@ -53,16 +55,13 @@ class HomeEmpleadorScreen extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const LoginScreen(rol: 'empleador'), // ✅ Corregido
+                    builder: (_) => const LoginScreen(rol: 'empleador'),
                   ),
                 );
               }
             },
             icon: const Icon(Icons.logout, color: Colors.black87),
-            label: const Text(
-              'Cerrar Sesión',
-              style: TextStyle(color: Colors.black87),
-            ),
+            label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.black87)),
           ),
           const SizedBox(width: 10),
         ],
@@ -83,73 +82,89 @@ class HomeEmpleadorScreen extends StatelessWidget {
             const SizedBox(height: 6),
             const Text(
               'Gestiona tu perfil y tus oportunidades',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.black54,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.black54),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 20),
+
             Expanded(
-              child: GridView.count(
-                crossAxisCount: 2,
-                crossAxisSpacing: 20,
-                mainAxisSpacing: 20,
-                childAspectRatio: 3,
-                children: [
-                  _menuCard(
-                    icon: Icons.search,
-                    color: Colors.blue,
-                    title: 'Buscar Ofertas Laborales',
-                    subtitle: 'Encuentra trabajos disponibles',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const OfertasScreen(),
-                        ),
+              child: GridView.builder(
+                padding: const EdgeInsets.only(top: 10),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 20,
+                  crossAxisSpacing: 20,
+                  childAspectRatio: 1.1,
+                ),
+                itemCount: 5,
+                itemBuilder: (context, index) {
+                  switch (index) {
+                    case 0:
+                      return _menuCard(
+                        icon: Icons.search,
+                        color: Colors.blue,
+                        title: 'Buscar\nOfertas',
+                        subtitle: 'Encuentra empleos',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const OfertasScreen()),
+                          );
+                        },
                       );
-                    },
-                  ),
-                  _menuCard(
-                    icon: Icons.person,
-                    color: Colors.purple,
-                    title: 'Mi Perfil',
-                    subtitle: 'Actualiza tu información profesional',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => PerfilEmpleadorScreen(
-                            userId: 0, // Ajusta según tu lógica
-                            nombre: userName,
-                            telefono: "No registrado",
-                          ),
-                        ),
+                    case 1:
+                      return _menuCard(
+                        icon: Icons.person,
+                        color: Colors.purple,
+                        title: 'Mi\nPerfil',
+                        subtitle: 'Editar información',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PerfilEmpleadorScreen(
+                                userId: auth.userId ?? 0,
+                                nombre: userName,
+                                telefono: "No registrado",
+                              ),
+                            ),
+                          );
+                        },
                       );
-                    },
-                  ),
-                  _menuCard(
-                    icon: Icons.note_alt_outlined,
-                    color: Colors.green,
-                    title: 'Mis Postulaciones',
-                    subtitle: 'Revisa tus solicitudes enviadas',
-                    onTap: () {},
-                  ),
-                  _menuCard(
-                    icon: Icons.calendar_today_outlined,
-                    color: Colors.orange,
-                    title: 'Agenda de Servicios',
-                    subtitle: 'Próximos trabajos o reuniones',
-                    onTap: () {},
-                  ),
-                  _menuCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: Colors.teal,
-                    title: 'Mi Billetera',
-                    subtitle: 'Historial de pagos e ingresos',
-                    onTap: () {},
-                  ),
-                ],
+                    case 2:
+                      return _menuCard(
+                        icon: Icons.note_alt_outlined,
+                        color: Colors.green,
+                        title: 'Mis\nPostulaciones',
+                        subtitle: 'Revisar solicitudes',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MisPostulacionesScreen(),
+                            ),
+                          );
+                        },
+                      );
+                    case 3:
+                      return _menuCard(
+                        icon: Icons.calendar_month,
+                        color: Colors.orange,
+                        title: 'Agenda\nServicios',
+                        subtitle: 'Trabajos programados',
+                        onTap: () {},
+                      );
+                    case 4:
+                      return _menuCard(
+                        icon: Icons.account_balance_wallet,
+                        color: Colors.teal,
+                        title: 'Mi\nBilletera',
+                        subtitle: 'Pagos e ingresos',
+                        onTap: () {},
+                      );
+                    default:
+                      return Container();
+                  }
+                },
               ),
             ),
           ],
@@ -177,12 +192,13 @@ class HomeEmpleadorScreen extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               color: Colors.black12.withOpacity(0.05),
-              blurRadius: 10,
+              blurRadius: 8,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(12),
@@ -192,30 +208,10 @@ class HomeEmpleadorScreen extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 30),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(height: 12),
+            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black54)),
           ],
         ),
       ),

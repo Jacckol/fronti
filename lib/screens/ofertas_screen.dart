@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/postulaciones_provider.dart';
 
 class OfertasScreen extends StatelessWidget {
   const OfertasScreen({super.key});
@@ -7,6 +10,7 @@ class OfertasScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final trabajos = [
       {
+        'id': 1,
         'titulo': 'Reparación de instalación eléctrica',
         'categoria': 'Electricidad',
         'urgente': true,
@@ -20,6 +24,7 @@ class OfertasScreen extends StatelessWidget {
         'hace': '4 días',
       },
       {
+        'id': 2,
         'titulo': 'Pintura completa de apartamento',
         'categoria': 'Pintura',
         'urgente': false,
@@ -38,6 +43,17 @@ class OfertasScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Ofertas disponibles'),
         backgroundColor: const Color(0xFF8B5CF6),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pushNamed(context, '/misPostulaciones');
+            },
+            child: const Text(
+              'Mis Postulaciones',
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
       ),
       backgroundColor: const Color(0xFFF9FAFB),
       body: Padding(
@@ -185,6 +201,11 @@ class OfertasScreen extends StatelessWidget {
                       ),
                       ElevatedButton.icon(
                         onPressed: () {
+                          // 👉 GUARDAR POSTULACIÓN EN PROVIDER
+                          final postProv =
+                              context.read<PostulacionesProvider>();
+                          postProv.agregarDesdeTrabajo(t);
+
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
@@ -195,6 +216,9 @@ class OfertasScreen extends StatelessWidget {
                               duration: const Duration(seconds: 2),
                             ),
                           );
+
+                          // Ir a Mis Postulaciones
+                          Navigator.pushNamed(context, '/misPostulaciones');
                         },
                         icon: const Icon(Icons.send, size: 16),
                         label: const Text('Postularme'),

@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/empleador_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
@@ -31,33 +32,38 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
   final _ubicacionCtrl = TextEditingController();
   final _categoriaCtrl = TextEditingController();
   final _experienciaCtrl = TextEditingController();
-  final _biografiaCtrl = TextEditingController();
-  final _habilidadCtrl = TextEditingController();
 
+  final _habilidadCtrl = TextEditingController();
   List<String> _habilidades = [];
+
   PlatformFile? _pickedFoto;
   PlatformFile? _pickedCv;
 
   @override
   void initState() {
     super.initState();
+
     _nombreCtrl = TextEditingController(text: widget.nombre);
     _telefonoCtrl = TextEditingController(text: widget.telefono);
 
-    // Cargar perfil del empleador
     Future.microtask(() async {
       final provider = context.read<EmpleadorProvider>();
-      await provider.fetchPerfil(widget.userId);
+      await provider.fetchPerfil();
+
       final p = provider.perfil;
+
       if (p != null) {
-        _ubicacionCtrl.text = p['ubicacion'] ?? '';
-        _categoriaCtrl.text = p['categoria'] ?? '';
-        _experienciaCtrl.text = (p['experiencia']?.toString() ?? '');
-        _biografiaCtrl.text = p['biografia'] ?? '';
-        final hab = p['habilidades'];
-        if (hab is List) _habilidades = List<String>.from(hab);
-        setState(() {});
+        _telefonoCtrl.text = p["telefono"] ?? widget.telefono;
+        _ubicacionCtrl.text = p["direccion"] ?? "";
+        _categoriaCtrl.text = p["categoria"] ?? "";
+        _experienciaCtrl.text = p["experiencia"]?.toString() ?? "0";
+
+        if (p["habilidades"] is List) {
+          _habilidades = List<String>.from(p["habilidades"]);
+        }
       }
+
+      setState(() {});
     });
   }
 
@@ -68,7 +74,6 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
     _ubicacionCtrl.dispose();
     _categoriaCtrl.dispose();
     _experienciaCtrl.dispose();
-    _biografiaCtrl.dispose();
     _habilidadCtrl.dispose();
     super.dispose();
   }
@@ -94,63 +99,9 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
     }
   }
 
-  Widget _infoCard(String emoji, String value, String label) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 20)),
-            const SizedBox(height: 6),
-            Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            const SizedBox(height: 6),
-            Text(label, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _textField({
-    required String label,
-    required TextEditingController ctrl,
-    int? maxLines,
-    bool readOnly = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-        const SizedBox(height: 6),
-        TextFormField(
-          controller: ctrl,
-          readOnly: readOnly,
-          maxLines: maxLines ?? 1,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF3F4F6),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-            isDense: true,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          ),
-          validator: (v) {
-            if (!readOnly && (v == null || v.trim().isEmpty)) return 'Campo obligatorio';
-            return null;
-          },
-        ),
-      ],
-    );
-  }
-
   Future<void> _guardar() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final provider = context.read<EmpleadorProvider>();
     File? fotoFile;
     File? cvFile;
 
@@ -159,30 +110,48 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
       if (_pickedCv?.path != null) cvFile = File(_pickedCv!.path!);
     }
 
-    bool ok = await provider.savePerfil(
+    final provider = context.read<EmpleadorProvider>();
+
+    // GUARDAR CAMPOS BÁSICOS
+    final ok = await provider.savePerfil(
+      nombreCompleto: _nombreCtrl.text.trim(),
+      telefono: _telefonoCtrl.text.trim(),
       ubicacion: _ubicacionCtrl.text.trim(),
       categoria: _categoriaCtrl.text.trim(),
       experiencia: int.tryParse(_experienciaCtrl.text.trim()) ?? 0,
-      biografia: _biografiaCtrl.text.trim(),
       habilidades: _habilidades,
-      fotoFile: fotoFile,
-      cvFile: cvFile,
     );
 
+    // SUBIR FOTO SI EL USUARIO LA ELIJE
+    if (fotoFile != null) {
+      await provider.uploadFoto(fotoFile);
+    }
+
+    // SUBIR CV SI EL USUARIO LO ELIGE
+    if (cvFile != null) {
+      await provider.uploadCv(cvFile);
+    }
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Perfil actualizado ✅' : 'Error guardando perfil ❌')),
+      SnackBar(content: Text(ok ? 'Perfil actualizado ✅' : 'Error guardando ❌')),
     );
   }
 
   Future<void> _logout() async {
     final confirmar = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (_) => AlertDialog(
         title: const Text('Cerrar Sesión'),
         content: const Text('¿Seguro deseas cerrar sesión?'),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancelar')),
-          TextButton(onPressed: () => Navigator.of(context).pop(true), child: const Text('Sí')),
+          TextButton(
+            child: const Text('Cancelar'),
+            onPressed: () => Navigator.pop(context, false),
+          ),
+          TextButton(
+            child: const Text('Sí'),
+            onPressed: () => Navigator.pop(context, true),
+          ),
         ],
       ),
     );
@@ -191,7 +160,9 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
       await context.read<AuthProvider>().logout();
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const LoginScreen(rol: 'empleador')),
+        MaterialPageRoute(
+          builder: (_) => const LoginScreen(rol: 'empleador'),
+        ),
       );
     }
   }
@@ -201,231 +172,265 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
     final provider = context.watch<EmpleadorProvider>();
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 1,
-        title: const Text('Portal Empleador', style: TextStyle(color: Color(0xFF7C3AED))),
+        title: const Text(
+          'Portal Empleador',
+          style: TextStyle(
+            color: Color(0xFF7C3AED),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         actions: [
           TextButton.icon(
             onPressed: _logout,
             icon: const Icon(Icons.logout, color: Colors.black87),
             label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.black87)),
-          )
+          ),
         ],
       ),
-      backgroundColor: const Color(0xFFF9FAFB),
+
       body: provider.loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Mi Perfil Profesional', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  const Text('Mantén tu información actualizada para recibir mejores ofertas', style: TextStyle(color: Colors.black54)),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      _infoCard('⭐', '4.8', 'Calificación'),
-                      const SizedBox(width: 12),
-                      _infoCard('📋', '156', 'Trabajos Completados'),
-                      const SizedBox(width: 12),
-                      _infoCard('💼', _experienciaCtrl.text.isNotEmpty ? _experienciaCtrl.text : '0', 'Años de Experiencia'),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 260,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            const Align(alignment: Alignment.centerLeft, child: Text('Foto de Perfil', style: TextStyle(fontWeight: FontWeight.bold))),
-                            const SizedBox(height: 12),
-                            CircleAvatar(
-                              radius: 48,
-                              backgroundColor: Colors.grey[200],
-                              child: Text(widget.nombre.isNotEmpty ? widget.nombre[0].toUpperCase() : 'A', style: const TextStyle(fontSize: 36)),
-                            ),
-                            const SizedBox(height: 12),
-                            SizedBox(
-                              width: double.infinity,
-                              child: OutlinedButton.icon(
-                                onPressed: _pickFoto,
-                                icon: const Icon(Icons.upload_outlined),
-                                label: const Text('Subir Foto'),
-                              ),
-                            ),
-                            if (_pickedFoto != null) ...[
-                              const SizedBox(height: 8),
-                              Text(_pickedFoto!.name, overflow: TextOverflow.ellipsis),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 18),
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('Información Personal', style: TextStyle(fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 12),
-                                _textField(label: 'Nombre Completo *', ctrl: _nombreCtrl, readOnly: true),
-                                const SizedBox(height: 10),
-                                _textField(label: 'Teléfono *', ctrl: _telefonoCtrl, readOnly: true),
-                                const SizedBox(height: 10),
-                                _textField(label: 'Ubicación *', ctrl: _ubicacionCtrl),
-                                const SizedBox(height: 10),
-                                Row(
-                                  children: [
-                                    Expanded(child: _textField(label: 'Categoría *', ctrl: _categoriaCtrl)),
-                                    const SizedBox(width: 12),
-                                    SizedBox(
-                                      width: 100,
-                                      child: _textField(label: 'Años de Experiencia *', ctrl: _experienciaCtrl),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 10),
-                                _textField(label: 'Biografía Profesional', ctrl: _biografiaCtrl, maxLines: 3),
-                                const SizedBox(height: 12),
-                                SizedBox(
-                                  width: double.infinity,
-                                  height: 44,
-                                  child: ElevatedButton(
-                                    onPressed: _guardar,
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF07051A),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                    ),
-                                    child: provider.loading
-                                        ? const CircularProgressIndicator(color: Colors.white)
-                                        : const Text('Guardar Cambios'),
-                                  ),
-                                )
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  // Habilidades
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Habilidades y Especialidades', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: _habilidadCtrl,
-                                decoration: InputDecoration(
-                                  filled: true,
-                                  fillColor: const Color(0xFFF3F4F6),
-                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
-                                  hintText: 'Agregar nueva habilidad...',
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            ElevatedButton(
-                              onPressed: () {
-                                final text = _habilidadCtrl.text.trim();
-                                if (text.isNotEmpty) {
-                                  setState(() {
-                                    _habilidades.add(text);
-                                    _habilidadCtrl.clear();
-                                  });
-                                }
-                              },
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.black),
-                              child: const Text('Agregar'),
-                            )
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          children: _habilidades.map((h) {
-                            return Chip(
-                              label: Text(h),
-                              onDeleted: () {
-                                setState(() => _habilidades.remove(h));
-                              },
-                            );
-                          }).toList(),
-                        )
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  // CV
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text('Currículum (CV)', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 30),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.upload_file, size: 36, color: Colors.black54),
-                              const SizedBox(height: 8),
-                              const Text('Sube tu CV para mejorar tus oportunidades', style: TextStyle(color: Colors.black54)),
-                              const SizedBox(height: 6),
-                              const Text('PDF, DOC o DOCX (máx. 5MB)', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                              const SizedBox(height: 12),
-                              OutlinedButton(
-                                onPressed: _pickCv,
-                                child: const Text('Seleccionar Archivo'),
-                              ),
-                              if (_pickedCv != null) ...[
-                                const SizedBox(height: 8),
-                                Text(_pickedCv!.name, overflow: TextOverflow.ellipsis),
-                              ],
-                            ],
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
-              ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Mi Perfil Profesional',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 6),
+            const Text(
+              'Mantén tu información actualizada para recibir mejores ofertas',
+              style: TextStyle(color: Colors.black54),
+            ),
+            const SizedBox(height: 20),
+
+            Row(
+              children: [
+                Expanded(child: _infoCard('⭐', '4.8', 'Calificación')),
+                const SizedBox(width: 12),
+                Expanded(child: _infoCard('📋', '156', 'Trabajos')),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _infoCard(
+                    '💼',
+                    _experienciaCtrl.text.isNotEmpty
+                        ? _experienciaCtrl.text
+                        : '0',
+                    'Años',
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            _fotoCard(),
+            const SizedBox(height: 20),
+            _formCard(),
+            const SizedBox(height: 20),
+            _habilidadesCard(),
+            const SizedBox(height: 20),
+            _cvCard(),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _fotoCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: Column(
+        children: [
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text('Foto de Perfil', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 12),
+
+          CircleAvatar(
+            radius: 55,
+            backgroundColor: Colors.grey.shade300,
+            child: Text(
+              widget.nombre.isNotEmpty
+                  ? widget.nombre[0].toUpperCase()
+                  : 'U',
+              style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: _pickFoto,
+              icon: const Icon(Icons.upload_outlined),
+              label: const Text('Subir Foto'),
+            ),
+          ),
+          if (_pickedFoto != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_pickedFoto!.name),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _formCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          children: [
+            _campo('Nombre Completo', _nombreCtrl, readOnly: true),
+            const SizedBox(height: 12),
+            _campo('Teléfono', _telefonoCtrl),
+            const SizedBox(height: 12),
+            _campo('Ubicación *', _ubicacionCtrl),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(child: _campo('Categoría *', _categoriaCtrl)),
+                const SizedBox(width: 12),
+                SizedBox(
+                  width: 110,
+                  child: _campo('Años *', _experienciaCtrl),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _guardar,
+              child: const Text('Guardar Cambios'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _habilidadesCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Habilidades', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _habilidadCtrl,
+                  decoration: const InputDecoration(
+                    hintText: "Agregar habilidad...",
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton(
+                onPressed: () {
+                  final h = _habilidadCtrl.text.trim();
+                  if (h.isNotEmpty) {
+                    setState(() {
+                      _habilidades.add(h);
+                      _habilidadCtrl.clear();
+                    });
+                  }
+                },
+                child: const Text("Agregar"),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 8,
+            children: _habilidades
+                .map((h) => Chip(
+              label: Text(h),
+              onDeleted: () {
+                setState(() => _habilidades.remove(h));
+              },
+            ))
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cvCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Currículum (CV)", style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: _pickCv,
+            child: const Text("Seleccionar Archivo"),
+          ),
+          if (_pickedCv != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_pickedCv!.name),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _campo(String label, TextEditingController c, {bool readOnly = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: c,
+          readOnly: readOnly,
+          validator: (v) {
+            if (!readOnly && (v == null || v.isEmpty)) return 'Campo obligatorio';
+            return null;
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _infoCard(String icon, String value, String label) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: _box(),
+      child: Column(
+        children: [
+          Text(icon, style: const TextStyle(fontSize: 22)),
+          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          Text(label, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _box() {
+    return BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade300),
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/trabajo_provider.dart';
 import 'providers/empleador_provider.dart';
+import 'providers/postulaciones_provider.dart';
 
 // 🔹 Pantallas
 import 'screens/seleccion_screen.dart';
@@ -13,7 +14,9 @@ import 'screens/register_user_screen.dart';
 import 'screens/register_employer_screen.dart';
 import 'screens/home_user.dart';
 import 'screens/home_empleador.dart';
-import 'screens/perfil_empleador_screen.dart'; // 👈 Importa la nueva pantalla
+import 'screens/perfil_empleador_screen.dart';
+import 'screens/mis_postulaciones_screen.dart';
+import 'screens/ofertas_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,10 +32,12 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TrabajoProvider()),
         ChangeNotifierProvider(create: (_) => EmpleadorProvider()),
+        ChangeNotifierProvider(create: (_) => PostulacionesProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'TodoServy',
+
         theme: ThemeData(
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: const Color(0xFFF3F5F7),
@@ -40,14 +45,21 @@ class MyApp extends StatelessWidget {
             border: OutlineInputBorder(),
           ),
         ),
+
+        // 🚀 Pantalla inicial
         initialRoute: '/seleccion',
+
+        // ===============================================
+        // 🔥 onGenerateRoute — TODAS LAS RUTAS DEFINIDAS
+        // ===============================================
         onGenerateRoute: (settings) {
           switch (settings.name) {
-            case '/seleccion':
-              return MaterialPageRoute(
-                builder: (_) => const SeleccionScreen(),
-              );
 
+            // 🔹 Pantalla de selección de rol
+            case '/seleccion':
+              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
+
+            // 🔹 Login
             case '/login':
               final args = settings.arguments as Map<String, dynamic>? ?? {};
               return MaterialPageRoute(
@@ -56,6 +68,7 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
+            // 🔹 Registro según rol
             case '/register':
               final args = settings.arguments as Map<String, dynamic>? ?? {};
               if (args['rol'] == 'usuario') {
@@ -68,27 +81,40 @@ class MyApp extends StatelessWidget {
                 );
               }
 
+            // 🔹 Home Usuario
             case '/homeUser':
               return MaterialPageRoute(
                 builder: (_) => const HomeUserScreen(),
               );
 
+            // 🔹 Home Empleador
             case '/homeEmpleador':
               return MaterialPageRoute(
                 builder: (_) => const HomeEmpleadorScreen(),
               );
 
-            // 👇 Nueva ruta para el perfil del empleador
+            // 🔹 Perfil Empleador
             case '/perfilEmpleador':
-              final args = settings.arguments as Map<String, dynamic>;
+              final args = settings.arguments as Map<String, dynamic>? ?? {};
               return MaterialPageRoute(
                 builder: (_) => PerfilEmpleadorScreen(
-                  userId: args['userId'],
-                  nombre: args['nombre'],
-                  telefono: args['telefono'],
+                  userId: args['userId'] ?? 0,
+                  nombre: args['nombre'] ?? 'Sin nombre',
+                  telefono: args['telefono'] ?? 'No registrado',
                 ),
               );
 
+            // 🔹 Ofertas Screen
+            case '/ofertas':
+              return MaterialPageRoute(builder: (_) => const OfertasScreen());
+
+            // 🔹 Mis Postulaciones
+            case '/misPostulaciones':
+              return MaterialPageRoute(
+                builder: (_) => const MisPostulacionesScreen(),
+              );
+
+            // 🔹 Ruta desconocida → regresar a selección
             default:
               return MaterialPageRoute(
                 builder: (_) => const SeleccionScreen(),

@@ -2,133 +2,96 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
-/// Provider para manejar el perfil del empleador
 class EmpleadorProvider extends ChangeNotifier {
-  Map<String, dynamic>? perfil; // Perfil del empleador
-  bool loading = false; // Estado de carga
-  int? empleadorId; // ID real del empleador en la DB
+  Map<String, dynamic>? perfil;
+  bool loading = false;
 
-  /// URL base del backend
-  final String baseUrl = 'http://localhost:4000/api/perfil-empleador';
+  final String baseUrl = "http://10.0.2.2:4000/api/perfil/mine";
 
-  /// 🔹 Getters útiles para la UI
-  String get nombre => perfil?['nombre'] ?? '';
-  String get telefono => perfil?['telefono'] ?? '';
-  String get ubicacion => perfil?['ubicacion'] ?? '';
-  String get categoria => perfil?['categoria'] ?? '';
-  int get experiencia => perfil?['experiencia'] ?? 0;
-  String get biografia => perfil?['biografia'] ?? '';
-  List<String> get habilidades {
-    final h = perfil?['habilidades'];
-    if (h is List) return List<String>.from(h);
-    return [];
+  Future<String?> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString("token");
   }
 
-  /// 🔹 Obtener perfil usando userId
-  /// Este endpoint espera que tu backend tenga /user/:userId
-  Future<void> fetchPerfil(int userId) async {
+  // =====================================================
+  // GET PERFIL
+  // =====================================================
+  Future<void> fetchPerfil() async {
     loading = true;
     notifyListeners();
 
+    final token = await _getToken();
+
     try {
-      final res = await http.get(Uri.parse('$baseUrl/user/$userId'));
+      final res = await http.get(
+        Uri.parse(baseUrl),
+        headers: {"Authorization": "Bearer $token"},
+      );
 
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        perfil = data['perfil'];
-        empleadorId = data['empleadorId'];
-      } else if (res.statusCode == 404) {
-        perfil = null;
-        empleadorId = null;
-        debugPrint('Perfil no encontrado para userId=$userId');
+
+        perfil = {
+          "nombreCompleto": data["nombreCompleto"] ?? "",
+          "telefono": data["telefono"] ?? "",
+          "categoria": data["categoria"] ?? "",
+          "direccion": data["direccion"] ?? "",
+          "experiencia": data["experiencia"] ?? 0,
+          "habilidades": data["habilidades"] ?? [],
+        };
       } else {
         perfil = null;
-        empleadorId = null;
-        debugPrint('Error fetchPerfil ${res.statusCode}: ${res.body}');
       }
     } catch (e) {
+      print("❌ ERROR FETCH PERFIL: $e");
       perfil = null;
-      empleadorId = null;
-      debugPrint('Excepción fetchPerfil: $e');
     }
 
     loading = false;
     notifyListeners();
   }
 
-  /// 🔹 Guardar o actualizar perfil
-  /// Si no existe perfil, el backend debe crear uno con POST
+  // =====================================================
+  // PUT PERFIL (CAMPOS BÁSICOS)
+  // =====================================================
   Future<bool> savePerfil({
-    String? ubicacion,
-    String? categoria,
-    int? experiencia,
-    String? biografia,
-    List<String>? habilidades,
-    File? fotoFile,
-    File? cvFile,
+    required String nombreCompleto,
+    required String telefono,
+    required String ubicacion,
+    required String categoria,
+    required int experiencia,
+    required List<String> habilidades,
   }) async {
-    if (empleadorId == null) {
-      debugPrint('No se puede guardar perfil: empleadorId es null');
-      return false;
-    }
-
     loading = true;
     notifyListeners();
 
+    final token = await _getToken();
+
     try {
-      final uri = Uri.parse('$baseUrl/$empleadorId');
-      final request = http.MultipartRequest('PUT', uri);
+      final res = await http.put(
+        Uri.parse(baseUrl),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Content-Type": "application/json"
+        },
+        body: jsonEncode({
+          "nombreCompleto": nombreCompleto,
+          "telefono": telefono,
+          "direccion": ubicacion,
+          "categoria": categoria,
+          "experiencia": experiencia,
+          "habilidades": habilidades,
+        }),
+      );
 
-      // Campos de texto
-      request.fields['ubicacion'] = ubicacion ?? '';
-      request.fields['categoria'] = categoria ?? '';
-      request.fields['experiencia'] = (experiencia ?? 0).toString();
-      request.fields['biografia'] = biografia ?? '';
-      request.fields['habilidades'] = jsonEncode(habilidades ?? []);
-
-      // Archivos (foto y CV)
-      if (fotoFile != null) {
-        final stream = http.ByteStream(fotoFile.openRead());
-        final length = await fotoFile.length();
-        request.files.add(
-          http.MultipartFile(
-            'foto',
-            stream,
-            length,
-            filename: fotoFile.path.split(Platform.pathSeparator).last,
-          ),
-        );
-      }
-
-      if (cvFile != null) {
-        final stream = http.ByteStream(cvFile.openRead());
-        final length = await cvFile.length();
-        request.files.add(
-          http.MultipartFile(
-            'cv',
-            stream,
-            length,
-            filename: cvFile.path.split(Platform.pathSeparator).last,
-          ),
-        );
-      }
-
-      // Enviar request
-      final streamed = await request.send();
-      final resp = await http.Response.fromStream(streamed);
-
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        perfil = data['perfil'] ?? perfil;
-        loading = false;
-        notifyListeners();
+      if (res.statusCode == 200) {
+        await fetchPerfil();
         return true;
-      } else {
-        debugPrint('savePerfil error ${resp.statusCode}: ${resp.body}');
       }
     } catch (e) {
-      debugPrint('Excepción savePerfil: $e');
+      print("❌ ERROR SAVE PERFIL: $e");
     }
 
     loading = false;
@@ -136,10 +99,53 @@ class EmpleadorProvider extends ChangeNotifier {
     return false;
   }
 
-  /// 🔹 Limpiar perfil (por ejemplo al cerrar sesión)
-  void clearPerfil() {
-    perfil = null;
-    empleadorId = null;
-    notifyListeners();
+  // =====================================================
+  // SUBIR FOTO
+  // =====================================================
+  Future<bool> uploadFoto(File file) async {
+    final token = await _getToken();
+    final url = Uri.parse("http://10.0.2.2:4000/api/perfil/upload-foto");
+
+    final request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
+
+    request.files.add(await http.MultipartFile.fromPath("foto", file.path));
+
+    try {
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      print("📸 FOTO UPLOAD: ${response.statusCode}");
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("❌ ERROR UPLOAD FOTO: $e");
+      return false;
+    }
+  }
+
+  // =====================================================
+  // SUBIR CV
+  // =====================================================
+  Future<bool> uploadCv(File file) async {
+    final token = await _getToken();
+    final url = Uri.parse("http://10.0.2.2:4000/api/perfil/upload-cv");
+
+    final request = http.MultipartRequest("POST", url);
+    request.headers["Authorization"] = "Bearer $token";
+
+    request.files.add(await http.MultipartFile.fromPath("cv", file.path));
+
+    try {
+      final streamed = await request.send();
+      final response = await http.Response.fromStream(streamed);
+
+      print("📄 CV UPLOAD: ${response.statusCode}");
+
+      return response.statusCode == 200;
+    } catch (e) {
+      print("❌ ERROR UPLOAD CV: $e");
+      return false;
+    }
   }
 }
