@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 
-/// Estado de la postulación
+/// ===========================================================
+/// 🔹 ENUM – Estado de la postulación
+/// ===========================================================
 enum EstadoPostulacion { pendiente, aceptada, rechazada }
 
-/// Modelo simple de Postulación
+/// ===========================================================
+/// 🔹 Modelo de una Postulación
+/// ===========================================================
 class Postulacion {
-  final int id; // id interno de la postulación
+  final int id;
   final int trabajoId;
   final String titulo;
   final String categoria;
@@ -33,40 +37,44 @@ class Postulacion {
   });
 }
 
+/// ===========================================================
+/// 🔹 Provider de Postulaciones
+/// ===========================================================
 class PostulacionesProvider extends ChangeNotifier {
   final List<Postulacion> _postulaciones = [];
   int _autoId = 1;
 
+  // Obtener todas
   List<Postulacion> get todas => List.unmodifiable(_postulaciones);
 
-  List<Postulacion> get pendientes => _postulaciones
-      .where((p) => p.estado == EstadoPostulacion.pendiente)
-      .toList();
+  // Filtros
+  List<Postulacion> get pendientes =>
+      _postulaciones.where((p) => p.estado == EstadoPostulacion.pendiente).toList();
 
-  List<Postulacion> get aceptadas => _postulaciones
-      .where((p) => p.estado == EstadoPostulacion.aceptada)
-      .toList();
+  List<Postulacion> get aceptadas =>
+      _postulaciones.where((p) => p.estado == EstadoPostulacion.aceptada).toList();
 
-  List<Postulacion> get rechazadas => _postulaciones
-      .where((p) => p.estado == EstadoPostulacion.rechazada)
-      .toList();
+  List<Postulacion> get rechazadas =>
+      _postulaciones.where((p) => p.estado == EstadoPostulacion.rechazada).toList();
 
   int get totalPendientes => pendientes.length;
   int get totalAceptadas => aceptadas.length;
   int get totalRechazadas => rechazadas.length;
 
-  /// Agregar una postulación a partir de un "trabajo" (map del OfertasScreen)
+  /// ===========================================================
+  /// 🔹 Agregar una postulación desde una oferta
+  /// ===========================================================
   void agregarDesdeTrabajo(Map<String, dynamic> trabajo) {
     final nueva = Postulacion(
       id: _autoId++,
       trabajoId: trabajo['id'] ?? 0,
-      titulo: trabajo['titulo'] ?? '',
-      categoria: trabajo['categoria'] ?? '',
-      empleador: trabajo['publicadoPor'] ?? '',
-      ubicacion: trabajo['ubicacion'] ?? '',
+      titulo: trabajo['titulo'] ?? 'Trabajo sin título',
+      categoria: trabajo['categoria'] ?? 'Sin categoría',
+      empleador: trabajo['publicadoPor'] ?? 'Desconocido',
+      ubicacion: trabajo['ubicacion'] ?? 'Sin ubicación',
       presupuesto: (trabajo['presupuesto'] ?? 0).toDouble(),
       duracion: trabajo['duracion'] ?? '',
-      mensaje: 'Me interesa este trabajo. Tengo experiencia en esta área.',
+      mensaje: "Estoy interesado en este trabajo y tengo experiencia para realizarlo.",
       fecha: DateTime.now(),
     );
 
@@ -74,11 +82,29 @@ class PostulacionesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Por si luego quieres cambiar el estado manualmente o desde backend
+  /// ===========================================================
+  /// 🔹 Cambiar estado (ACEPTAR / RECHAZAR)
+  /// ===========================================================
   void cambiarEstado(int id, EstadoPostulacion nuevoEstado) {
     final idx = _postulaciones.indexWhere((p) => p.id == id);
     if (idx == -1) return;
+
     _postulaciones[idx].estado = nuevoEstado;
+    notifyListeners();
+  }
+
+  /// ===========================================================
+  /// 🔹 Eliminar postulación
+  /// ===========================================================
+  void eliminarPostulacion(int id) {
+    _postulaciones.removeWhere((p) => p.id == id);
+    notifyListeners();
+  }
+
+
+  void reset() {
+    _postulaciones.clear();
+    _autoId = 1;
     notifyListeners();
   }
 }

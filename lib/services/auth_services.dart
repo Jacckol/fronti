@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  // 🌍 IMPORTANTE: desde el EMULADOR, el backend de tu PC es 10.0.2.2
   final String baseUrl = 'http://10.0.2.2:4000/api';
 
   // =====================================================
@@ -10,6 +9,7 @@ class AuthService {
   // =====================================================
   Future<Map<String, dynamic>?> login(String username, String password) async {
     final url = Uri.parse('$baseUrl/login');
+
     try {
       final response = await http.post(
         url,
@@ -22,144 +22,105 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('✅ Login exitoso: $data');
 
-        // 🔹 Normalmente el backend manda algo tipo:
-        // { user: {...}, rol: 'empleador', token: '...', perfilCompleto: true/false }
         return {
           'rol': data['rol'] ?? data['user']?['rol'],
-          'user': data['user'],
+          'user': data['user'] ?? {},
           'token': data['token'] ?? '',
           'perfilCompleto': data['perfilCompleto'] ?? false,
         };
-      } else {
-        final data = jsonDecode(response.body);
-        print('❌ Error en login: ${data['error'] ?? response.body}');
-        return null;
       }
+
+      return null;
     } catch (e) {
-      print('⚠️ Error de conexión en login: $e');
+      print("❌ Error login: $e");
       return null;
     }
   }
 
   // =====================================================
-  // 🟩 REGISTRO DE USUARIO NORMAL
+  // 🟩 REGISTRO USUARIO NORMAL
   // =====================================================
-  Future<bool> registerUser(String username, String password, String email) async {
+  Future<bool> registerUser(String nombre, String password, String email) async {
     final url = Uri.parse('$baseUrl/register');
+
     try {
-      final response = await http.post(
+      final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'nombre': username,
+          'nombre': nombre,
           'email': email,
           'password': password,
-          'rol': 'cliente',
+          'rol': 'usuario'
         }),
       );
 
-      final data = jsonDecode(response.body);
-      print('📨 Respuesta registro usuario: $data');
+      return res.statusCode == 201;
 
-      if (response.statusCode == 201) {
-        print('✅ Usuario registrado correctamente');
-        return true;
-      }
-
-      if (data['error'] != null) {
-        throw Exception(data['error']);
-      }
-
-      return false;
     } catch (e) {
-      print('❌ Error en registro de usuario: $e');
-      throw Exception('No se pudo registrar el usuario: $e');
+      print("❌ Error registrando usuario: $e");
+      return false;
     }
   }
 
   // =====================================================
-  // 🟨 REGISTRO DE EMPLEADOR
+  // 🟨 REGISTRO TRABAJADOR — CORRECTO
   // =====================================================
-  Future<bool> registerEmployer(
-    String companyName,
-    String username,
-    String password,
-    String email, {
-    String? ruc,
-    String? telefono,
+  Future<bool> registerWorker({
+    required String nombre,
+    required String usuario,
+    required String email,
+    required String password,
+    required String telefono,
   }) async {
     final url = Uri.parse('$baseUrl/register');
+
     try {
-      final response = await http.post(
+      final res = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'nombre': username,
+          'nombre': nombre,
+          'usuario': usuario,
           'email': email,
           'password': password,
-          'rol': 'empleador',
-          'empresa': companyName,
-          'ruc': ruc ?? '1234567890',
-          'telefono': telefono ?? '0999999999',
+          'telefono': telefono,
+          'rol': 'trabajador'
         }),
       );
 
-      final data = jsonDecode(response.body);
-      print('📨 Respuesta registro empleador: $data');
+      print("📨 Registro trabajador → ${res.body}");
 
-      if (response.statusCode == 201) {
-        print('✅ Empleador registrado correctamente');
-        return true;
-      }
+      return res.statusCode == 201;
 
-      if (data['error'] != null) {
-        throw Exception(data['error']);
-      }
-
-      return false;
     } catch (e) {
-      print('❌ Error en registro de empleador: $e');
-      throw Exception('No se pudo registrar el empleador: $e');
+      print("❌ Error registrando trabajador: $e");
+      return false;
     }
   }
 
   // =====================================================
-  // 🟩 GUARDAR PERFIL LABORAL
+  // 🟧 GUARDAR PERFIL LABORAL
   // =====================================================
-  Future<bool> savePerfilLaboral(Map<String, dynamic> perfilData, String token) async {
+  Future<bool> savePerfilLaboral(Map perfil, String token) async {
     final url = Uri.parse('$baseUrl/perfil-laboral');
+
     try {
-      final response = await http.post(
+      final res = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode(perfilData),
+        body: jsonEncode(perfil),
       );
 
-      print('📨 Respuesta perfil laboral: ${response.body}');
+      return res.statusCode == 201;
 
-      if (response.statusCode == 201) {
-        print('✅ Perfil laboral guardado correctamente');
-        return true;
-      } else {
-        print('❌ Error guardando perfil laboral: ${response.body}');
-        return false;
-      }
     } catch (e) {
-      print('⚠️ Error de conexión al guardar perfil laboral: $e');
+      print("❌ Error guardando perfil: $e");
       return false;
     }
-  }
-
-  // =====================================================
-  // 🔴 LOGOUT
-  // =====================================================
-  Future<void> logout() async {
-    print('🚪 Sesión cerrada');
-    return;
   }
 }

@@ -2,18 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
-import 'login_screen.dart';
-import 'ofertas_screen.dart';
-import 'perfil_empleador_screen.dart';
-import 'mis_postulaciones_screen.dart';
 
-class HomeEmpleadorScreen extends StatelessWidget {
-  const HomeEmpleadorScreen({super.key});
+// Pantallas correctas para TRABAJADOR
+import 'login_screen.dart';
+import 'perfil_trabajador_screen.dart';
+import 'mis_postulaciones_screen.dart';
+import 'ofertas_screen.dart';
+import 'publicaciones_screen.dart';
+import 'publicar_servicio_screen.dart';
+import 'mi_billetera_screen.dart';
+
+class HomeTrabajadorScreen extends StatelessWidget {
+  const HomeTrabajadorScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    final userName = auth.userName ?? "Usuario";
+    final userName = auth.userName ?? "Trabajador";
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F7FF),
@@ -22,7 +27,7 @@ class HomeEmpleadorScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 1,
         title: const Text(
-          'Portal del Empleador',
+          'Portal del Trabajador',
           style: TextStyle(
             color: Color(0xFF8B5CF6),
             fontWeight: FontWeight.bold,
@@ -39,11 +44,11 @@ class HomeEmpleadorScreen extends StatelessWidget {
                   content: const Text('¿Seguro deseas cerrar sesión?'),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
+                      onPressed: () => Navigator.pop(context, false),
                       child: const Text('Cancelar'),
                     ),
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
+                      onPressed: () => Navigator.pop(context, true),
                       child: const Text('Sí'),
                     ),
                   ],
@@ -55,17 +60,21 @@ class HomeEmpleadorScreen extends StatelessWidget {
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => const LoginScreen(rol: 'empleador'),
+                    builder: (_) => const LoginScreen(rol: 'trabajador'),
                   ),
                 );
               }
             },
             icon: const Icon(Icons.logout, color: Colors.black87),
-            label: const Text('Cerrar Sesión', style: TextStyle(color: Colors.black87)),
+            label: const Text(
+              'Cerrar Sesión',
+              style: TextStyle(color: Colors.black87),
+            ),
           ),
           const SizedBox(width: 10),
         ],
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -81,7 +90,7 @@ class HomeEmpleadorScreen extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             const Text(
-              'Gestiona tu perfil y tus oportunidades',
+              'Gestiona tu perfil y servicios',
               style: TextStyle(fontSize: 16, color: Colors.black54),
             ),
             const SizedBox(height: 20),
@@ -95,22 +104,32 @@ class HomeEmpleadorScreen extends StatelessWidget {
                   crossAxisSpacing: 20,
                   childAspectRatio: 1.1,
                 ),
-                itemCount: 5,
+                itemCount: 6,
                 itemBuilder: (context, index) {
                   switch (index) {
+
+                    // ------------------------------------------------
+                    // 0️⃣ — Buscar Ofertas
+                    // ------------------------------------------------
                     case 0:
                       return _menuCard(
                         icon: Icons.search,
                         color: Colors.blue,
                         title: 'Buscar\nOfertas',
-                        subtitle: 'Encuentra empleos',
+                        subtitle: 'Oportunidades laborales',
                         onTap: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const OfertasScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const OfertasScreen(),
+                            ),
                           );
                         },
                       );
+
+                    // ------------------------------------------------
+                    // 1️⃣ — Mi Perfil (TRABAJADOR)
+                    // ------------------------------------------------
                     case 1:
                       return _menuCard(
                         icon: Icons.person,
@@ -121,7 +140,7 @@ class HomeEmpleadorScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => PerfilEmpleadorScreen(
+                              builder: (_) => PerfilTrabajadorScreen(
                                 userId: auth.userId ?? 0,
                                 nombre: userName,
                                 telefono: "No registrado",
@@ -130,6 +149,10 @@ class HomeEmpleadorScreen extends StatelessWidget {
                           );
                         },
                       );
+
+                    // ------------------------------------------------
+                    // 2️⃣ — Mis Postulaciones
+                    // ------------------------------------------------
                     case 2:
                       return _menuCard(
                         icon: Icons.note_alt_outlined,
@@ -145,22 +168,64 @@ class HomeEmpleadorScreen extends StatelessWidget {
                           );
                         },
                       );
+
+                    // ------------------------------------------------
+                    // 3️⃣ — Publicar Servicio
+                    // ------------------------------------------------
                     case 3:
                       return _menuCard(
-                        icon: Icons.calendar_month,
+                        icon: Icons.add_circle_outline,
                         color: Colors.orange,
-                        title: 'Agenda\nServicios',
-                        subtitle: 'Trabajos programados',
-                        onTap: () {},
+                        title: 'Publicar\nServicio',
+                        subtitle: 'Ofrece tus habilidades',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PublicarServicioScreen(),
+                            ),
+                          );
+                        },
                       );
+
+                    // ------------------------------------------------
+                    // 4️⃣ — Mi Billetera
+                    // ------------------------------------------------
                     case 4:
                       return _menuCard(
                         icon: Icons.account_balance_wallet,
                         color: Colors.teal,
                         title: 'Mi\nBilletera',
                         subtitle: 'Pagos e ingresos',
-                        onTap: () {},
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const MiBilleteraScreen(),
+                            ),
+                          );
+                        },
                       );
+
+                    // ------------------------------------------------
+                    // 5️⃣ — Mis Publicaciones
+                    // ------------------------------------------------
+                    case 5:
+                      return _menuCard(
+                        icon: Icons.list_alt,
+                        color: Colors.indigo,
+                        title: 'Mis\nPublicaciones',
+                        subtitle: 'Ver y gestionar',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const PublicacionesScreen(),
+                            ),
+                          );
+                        },
+                      );
+
                     default:
                       return Container();
                   }
@@ -209,9 +274,23 @@ class HomeEmpleadorScreen extends StatelessWidget {
               child: Icon(icon, color: color, size: 30),
             ),
             const SizedBox(height: 12),
-            Text(title, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
             const SizedBox(height: 6),
-            Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+            Text(
+              subtitle,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black54,
+              ),
+            ),
           ],
         ),
       ),

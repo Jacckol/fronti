@@ -36,7 +36,7 @@ class SeleccionScreen extends StatelessWidget {
               ),
               const SizedBox(height: 60),
 
-              // Botón Usuario
+              // 👉 Botón Usuario
               SizedBox(
                 width: 250,
                 height: 55,
@@ -52,7 +52,7 @@ class SeleccionScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => LoginScreen(rol: 'usuario'),
+                        builder: (_) => const LoginScreen(rol: 'usuario'),
                       ),
                     );
                   },
@@ -69,7 +69,7 @@ class SeleccionScreen extends StatelessWidget {
 
               const SizedBox(height: 25),
 
-              // Botón Empleador
+              // 👉 Botón Trabajador (antes empleador)
               SizedBox(
                 width: 250,
                 height: 55,
@@ -85,12 +85,12 @@ class SeleccionScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => LoginScreen(rol: 'empleador'),
+                        builder: (_) => const LoginScreen(rol: 'trabajador'),
                       ),
                     );
                   },
                   child: const Text(
-                    'Soy Empleador',
+                    'Soy Trabajador',
                     style: TextStyle(
                       color: Color(0xFF2575FC),
                       fontSize: 18,

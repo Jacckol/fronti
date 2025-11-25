@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
-class RegisterEmployerScreen extends StatefulWidget {
+class RegisterTrabajadorScreen extends StatefulWidget {
   final String rol;
-  const RegisterEmployerScreen({super.key, required this.rol});
+  const RegisterTrabajadorScreen({super.key, required this.rol});
 
   @override
-  State<RegisterEmployerScreen> createState() => _RegisterEmployerScreenState();
+  State<RegisterTrabajadorScreen> createState() => _RegisterTrabajadorScreenState();
 }
 
-class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
+class _RegisterTrabajadorScreenState extends State<RegisterTrabajadorScreen> {
   final _formKey = GlobalKey<FormState>();
-  final companyController = TextEditingController();
+
+  final nombreController = TextEditingController();
   final usernameController = TextEditingController();
   final passwordController = TextEditingController();
   final emailController = TextEditingController();
@@ -30,6 +31,7 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Container(
             padding: const EdgeInsets.all(32),
+            width: size.width > 500 ? 450 : double.infinity,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(24),
@@ -41,14 +43,13 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                 ),
               ],
             ),
-            width: size.width > 500 ? 450 : double.infinity,
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    "REGISTRO EMPLEADOR",
+                    "REGISTRO TRABAJADOR",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
@@ -56,23 +57,24 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                       color: Color(0xFF5B21B6),
                     ),
                   ),
+
                   const SizedBox(height: 24),
 
-                  // Nombre de Empresa
+                  // Nombre completo
                   TextFormField(
-                    controller: companyController,
+                    controller: nombreController,
                     decoration: InputDecoration(
-                      labelText: 'Nombre de Empresa',
-                      prefixIcon: const Icon(Icons.business),
+                      labelText: 'Nombre Completo',
+                      prefixIcon: const Icon(Icons.person_2),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                   ),
+
                   const SizedBox(height: 16),
 
                   // Usuario
@@ -87,12 +89,12 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                   ),
+
                   const SizedBox(height: 16),
 
-                  // Correo
+                  // Email
                   TextFormField(
                     controller: emailController,
                     decoration: InputDecoration(
@@ -104,9 +106,9 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                   ),
+
                   const SizedBox(height: 16),
 
                   // Contraseña
@@ -122,9 +124,9 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                   ),
+
                   const SizedBox(height: 16),
 
                   // Teléfono
@@ -139,12 +141,12 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                       filled: true,
                       fillColor: const Color(0xFFF3F4F6),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    validator: (v) => v == null || v.isEmpty ? 'Campo requerido' : null,
                   ),
+
                   const SizedBox(height: 24),
 
-                  // Botón Registrar Empresa
+                  // Botón registrar trabajador
                   SizedBox(
                     width: double.infinity,
                     height: 50,
@@ -155,52 +157,47 @@ class _RegisterEmployerScreenState extends State<RegisterEmployerScreen> {
                           borderRadius: BorderRadius.circular(16),
                         ),
                         elevation: 4,
-                        shadowColor: Colors.purpleAccent.withOpacity(0.2),
                       ),
                       onPressed: auth.isLoading
                           ? null
                           : () async {
                               if (_formKey.currentState!.validate()) {
-                                final ok = await auth.registerEmployer(
-                                  companyController.text,
-                                  usernameController.text,
-                                  passwordController.text,
-                                  emailController.text,
+                                final ok = await auth.registerWorker(
+                                  nombreController.text.trim(),
+                                  usernameController.text.trim(),
+                                  passwordController.text.trim(),
+                                  emailController.text.trim(),
+                                  phoneController.text.trim(),
                                 );
+
                                 if (ok) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text('Empresa registrada')),
+                                    const SnackBar(content: Text("Trabajador registrado correctamente")),
                                   );
+
                                   Navigator.pushReplacementNamed(
                                     context,
                                     '/login',
-                                    arguments: {'rol': 'empleador'},
+                                    arguments: {'rol': 'trabajador'},
                                   );
                                 }
                               }
                             },
                       child: auth.isLoading
-                          ? const CircularProgressIndicator(
-                              color: Colors.white,
-                            )
+                          ? const CircularProgressIndicator(color: Colors.white)
                           : const Text(
-                              'Registrar Empresa',
-                              style: TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                              "Registrar Trabajador",
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                             ),
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  // Botón para ir al login
                   TextButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: () => Navigator.pop(context),
                     child: const Text(
-                      '¿Ya tienes cuenta? Inicia sesión',
+                      "¿Ya tienes cuenta? Inicia sesión",
                       style: TextStyle(
                         color: Color(0xFF8B5CF6),
                         fontWeight: FontWeight.w600,

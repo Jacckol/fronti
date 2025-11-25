@@ -28,9 +28,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ===========================================================
+  // ============================================================
   // 🔹 LOGIN (GUARDA TOKEN Y DATOS)
-  // ===========================================================
+  // ============================================================
   Future<String?> login(String username, String password) async {
     isLoading = true;
 
@@ -44,15 +44,14 @@ class AuthProvider with ChangeNotifier {
         _userName = user['nombre'] ?? 'Usuario';
         _userId = user['id'];
         _token = response['token'];
+        _perfilCompleto = response['perfilCompleto'] ?? false;
 
-        // GUARDAR EN LOCAL
+        // Guardar en memoria local
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', _token ?? '');
-        await prefs.setInt('userId', _userId ?? 0);
         await prefs.setString('role', _role ?? '');
         await prefs.setString('userName', _userName ?? '');
-
-        _perfilCompleto = false;
+        await prefs.setInt('userId', _userId ?? 0);
 
         isLoading = false;
         notifyListeners();
@@ -67,47 +66,53 @@ class AuthProvider with ChangeNotifier {
     return null;
   }
 
-  // ===========================================================
-  // 🔹 REGISTRO USUARIO
-  // ===========================================================
-  Future<bool> registerUser(String username, String password, String email) async {
+  // ============================================================
+  // 🔹 REGISTRO DE USUARIO NORMAL
+  // ============================================================
+  Future<bool> registerUser(String nombre, String password, String email) async {
     isLoading = true;
     notifyListeners();
 
-    final ok = await _authService.registerUser(username, password, email);
+    final ok = await _authService.registerUser(nombre, password, email);
 
     isLoading = false;
     notifyListeners();
     return ok;
   }
 
-  // ===========================================================
-  // 🔹 REGISTRO EMPLEADOR
-  // ===========================================================
-  Future<bool> registerEmployer(
-      String companyName, String username, String password, String email) async {
+  // ============================================================
+  // 🔹 REGISTRO DE TRABAJADOR (CORREGIDO)
+  // ============================================================
+  Future<bool> registerWorker(
+      String nombre, String username, String password, String email, String telefono) async {
+
     isLoading = true;
     notifyListeners();
 
-    final ok = await _authService.registerEmployer(
-        companyName, username, password, email);
+    final ok = await _authService.registerWorker(
+      nombre: nombre,
+      usuario: username,
+      email: email,
+      password: password,
+      telefono: telefono,
+    );
 
     isLoading = false;
     notifyListeners();
     return ok;
   }
 
-  // ===========================================================
+  // ============================================================
   // 🔹 PERFIL COMPLETO
-  // ===========================================================
+  // ============================================================
   void setPerfilCompleto(bool value) {
     _perfilCompleto = value;
     notifyListeners();
   }
 
-  // ===========================================================
-  // 🔹 CARGAR DATOS GUARDADOS
-  // ===========================================================
+  // ============================================================
+  // 🔹 CARGAR SESIÓN
+  // ============================================================
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -119,9 +124,9 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ===========================================================
+  // ============================================================
   // 🔹 LOGOUT
-  // ===========================================================
+  // ============================================================
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();

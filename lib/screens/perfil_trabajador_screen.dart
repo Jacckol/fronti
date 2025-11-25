@@ -4,16 +4,16 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/empleador_provider.dart';
+import '../providers/trabajador_provider.dart';
 import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 
-class PerfilEmpleadorScreen extends StatefulWidget {
+class PerfilTrabajadorScreen extends StatefulWidget {
   final int userId;
   final String nombre;
   final String telefono;
 
-  const PerfilEmpleadorScreen({
+  const PerfilTrabajadorScreen({
     super.key,
     required this.userId,
     required this.nombre,
@@ -21,10 +21,10 @@ class PerfilEmpleadorScreen extends StatefulWidget {
   });
 
   @override
-  State<PerfilEmpleadorScreen> createState() => _PerfilEmpleadorScreenState();
+  State<PerfilTrabajadorScreen> createState() => _PerfilTrabajadorScreenState();
 }
 
-class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
+class _PerfilTrabajadorScreenState extends State<PerfilTrabajadorScreen> {
   final _formKey = GlobalKey<FormState>();
 
   late TextEditingController _nombreCtrl;
@@ -47,7 +47,7 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
     _telefonoCtrl = TextEditingController(text: widget.telefono);
 
     Future.microtask(() async {
-      final provider = context.read<EmpleadorProvider>();
+      final provider = context.read<TrabajadorProvider>();
       await provider.fetchPerfil();
 
       final p = provider.perfil;
@@ -110,30 +110,24 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
       if (_pickedCv?.path != null) cvFile = File(_pickedCv!.path!);
     }
 
-    final provider = context.read<EmpleadorProvider>();
+    final provider = context.read<TrabajadorProvider>();
 
-    // GUARDAR CAMPOS BÁSICOS
+    // 🔥 CAMPOS CORRECTOS (perfil simple)
     final ok = await provider.savePerfil(
-      nombreCompleto: _nombreCtrl.text.trim(),
       telefono: _telefonoCtrl.text.trim(),
-      ubicacion: _ubicacionCtrl.text.trim(),
       categoria: _categoriaCtrl.text.trim(),
+      direccion: _ubicacionCtrl.text.trim(),
       experiencia: int.tryParse(_experienciaCtrl.text.trim()) ?? 0,
       habilidades: _habilidades,
     );
 
-    // SUBIR FOTO SI EL USUARIO LA ELIJE
-    if (fotoFile != null) {
-      await provider.uploadFoto(fotoFile);
-    }
-
-    // SUBIR CV SI EL USUARIO LO ELIGE
-    if (cvFile != null) {
-      await provider.uploadCv(cvFile);
-    }
+    if (fotoFile != null) await provider.uploadFoto(fotoFile);
+    if (cvFile != null) await provider.uploadCv(cvFile);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Perfil actualizado ✅' : 'Error guardando ❌')),
+      SnackBar(
+        content: Text(ok ? 'Perfil actualizado ✅' : 'Error guardando ❌'),
+      ),
     );
   }
 
@@ -161,7 +155,7 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const LoginScreen(rol: 'empleador'),
+          builder: (_) => const LoginScreen(rol: 'trabajador'),
         ),
       );
     }
@@ -169,7 +163,7 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<EmpleadorProvider>();
+    final provider = context.watch<TrabajadorProvider>();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
@@ -177,7 +171,7 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
         backgroundColor: Colors.white,
         elevation: 1,
         title: const Text(
-          'Portal Empleador',
+          'Portal Trabajador',
           style: TextStyle(
             color: Color(0xFF7C3AED),
             fontWeight: FontWeight.bold,
@@ -195,52 +189,52 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
       body: provider.loading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Mi Perfil Profesional',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Mantén tu información actualizada para recibir mejores ofertas',
-              style: TextStyle(color: Colors.black54),
-            ),
-            const SizedBox(height: 20),
-
-            Row(
-              children: [
-                Expanded(child: _infoCard('⭐', '4.8', 'Calificación')),
-                const SizedBox(width: 12),
-                Expanded(child: _infoCard('📋', '156', 'Trabajos')),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _infoCard(
-                    '💼',
-                    _experienciaCtrl.text.isNotEmpty
-                        ? _experienciaCtrl.text
-                        : '0',
-                    'Años',
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Mi Perfil Profesional',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Mantén tu información actualizada para recibir mejores oportunidades',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                  const SizedBox(height: 20),
+
+                  Row(
+                    children: [
+                      Expanded(child: _infoCard('⭐', '4.8', 'Calificación')),
+                      const SizedBox(width: 12),
+                      Expanded(child: _infoCard('📋', '156', 'Trabajos')),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _infoCard(
+                          '💼',
+                          _experienciaCtrl.text.isNotEmpty
+                              ? _experienciaCtrl.text
+                              : '0',
+                          'Años',
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  _fotoCard(),
+                  const SizedBox(height: 20),
+                  _formCard(),
+                  const SizedBox(height: 20),
+                  _habilidadesCard(),
+                  const SizedBox(height: 20),
+                  _cvCard(),
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-
-            const SizedBox(height: 20),
-
-            _fotoCard(),
-            const SizedBox(height: 20),
-            _formCard(),
-            const SizedBox(height: 20),
-            _habilidadesCard(),
-            const SizedBox(height: 20),
-            _cvCard(),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
     );
   }
 
@@ -262,7 +256,7 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
             child: Text(
               widget.nombre.isNotEmpty
                   ? widget.nombre[0].toUpperCase()
-                  : 'U',
+                  : 'T',
               style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
             ),
           ),
@@ -359,11 +353,11 @@ class _PerfilEmpleadorScreenState extends State<PerfilEmpleadorScreen> {
             spacing: 8,
             children: _habilidades
                 .map((h) => Chip(
-              label: Text(h),
-              onDeleted: () {
-                setState(() => _habilidades.remove(h));
-              },
-            ))
+                      label: Text(h),
+                      onDeleted: () {
+                        setState(() => _habilidades.remove(h));
+                      },
+                    ))
                 .toList(),
           ),
         ],
