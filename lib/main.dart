@@ -4,24 +4,27 @@ import 'package:provider/provider.dart';
 // 🔹 Providers
 import 'providers/auth_provider.dart';
 import 'providers/trabajo_provider.dart';
-import 'providers/trabajador_provider.dart';          // CAMBIADO
+import 'providers/trabajador_provider.dart';
 import 'providers/postulaciones_provider.dart';
 import 'providers/mis_servicios_provider.dart';
 import 'providers/servicio_provider.dart';
 
-// 🔹 Pantallas
+// 🔹 Pantallas principales
 import 'screens/seleccion_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/register_user_screen.dart';
-import 'screens/register_trabajador_screen.dart';     // CAMBIADO
+
+// 🔹 Registro
+import 'screens/register_trabajador_screen.dart';
+import 'screens/register_employer_screen.dart';
+
+// 🔹 Home y módulos
 import 'screens/home_user.dart';
-import 'screens/home_trabajador.dart';                // CAMBIADO
-import 'screens/perfil_trabajador_screen.dart';       // CAMBIADO
+import 'screens/home_trabajador.dart';
+import 'screens/perfil_trabajador_screen.dart';
 import 'screens/mis_postulaciones_screen.dart';
 import 'screens/ofertas_screen.dart';
 import 'screens/publicar_servicio_screen.dart';
 import 'screens/publicaciones_screen.dart';
-// import 'screens/mi_billetera_screen.dart'; // opcional
 
 void main() {
   runApp(const MyApp());
@@ -36,7 +39,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => TrabajoProvider()),
-        ChangeNotifierProvider(create: (_) => TrabajadorProvider()),        // CAMBIO
+        ChangeNotifierProvider(create: (_) => TrabajadorProvider()),
         ChangeNotifierProvider(create: (_) => PostulacionesProvider()),
         ChangeNotifierProvider(create: (_) => MisServiciosProvider()),
         ChangeNotifierProvider(create: (_) => ServicioProvider()),
@@ -56,40 +59,57 @@ class MyApp extends StatelessWidget {
         initialRoute: '/seleccion',
 
         onGenerateRoute: (settings) {
+          final args = settings.arguments as Map<String, dynamic>? ?? {};
+          final rol = args['rol'];
+
           switch (settings.name) {
+
+            // Selección de rol
             case '/seleccion':
               return MaterialPageRoute(
                 builder: (_) => const SeleccionScreen(),
               );
 
+            // Login
             case '/login':
-              final args = settings.arguments as Map<String, dynamic>? ?? {};
               return MaterialPageRoute(
                 builder: (_) => LoginScreen(
-                  rol: args['rol'] ?? 'usuario',
+                  rol: rol ?? 'trabajador',
                 ),
               );
 
+            // Registro (solo TRABAJADOR y EMPLEADOR)
             case '/register':
-              final args = settings.arguments as Map<String, dynamic>? ?? {};
+              if (rol == 'trabajador') {
+                return MaterialPageRoute(
+                  builder: (_) => RegisterTrabajadorScreen(rol: 'trabajador'),
+                );
+              }
+
+              if (rol == 'empleador') {
+                return MaterialPageRoute(
+                  builder: (_) => const RegisterEmployerScreen(),
+                );
+              }
+
               return MaterialPageRoute(
-                builder: (_) => args['rol'] == 'usuario'
-                    ? RegisterUserScreen(rol: 'usuario')
-                    : RegisterTrabajadorScreen(rol: 'trabajador'),     // CAMBIO
+                builder: (_) => const SeleccionScreen(),
               );
 
+            // Home Usuario
             case '/homeUser':
               return MaterialPageRoute(
                 builder: (_) => const HomeUserScreen(),
               );
 
-            case '/homeTrabajador':                                     // CAMBIO
+            // Home Trabajador
+            case '/homeTrabajador':
               return MaterialPageRoute(
                 builder: (_) => const HomeTrabajadorScreen(),
               );
 
-            case '/perfilTrabajador':                                   // CAMBIO
-              final args = settings.arguments as Map<String, dynamic>? ?? {};
+            // Perfil trabajador
+            case '/perfilTrabajador':
               return MaterialPageRoute(
                 builder: (_) => PerfilTrabajadorScreen(
                   userId: args['userId'] ?? 0,
@@ -98,16 +118,19 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
+            // Ofertas
             case '/ofertas':
               return MaterialPageRoute(
                 builder: (_) => const OfertasScreen(),
               );
 
+            // Mis postulaciones
             case '/misPostulaciones':
               return MaterialPageRoute(
                 builder: (_) => const MisPostulacionesScreen(),
               );
 
+            // Servicios
             case '/publicarServicio':
               return MaterialPageRoute(
                 builder: (_) => const PublicarServicioScreen(),
@@ -118,6 +141,7 @@ class MyApp extends StatelessWidget {
                 builder: (_) => const PublicacionesScreen(),
               );
 
+            // Default
             default:
               return MaterialPageRoute(
                 builder: (_) => const SeleccionScreen(),

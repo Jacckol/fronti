@@ -3,12 +3,15 @@ import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
+// Providers
 import '../providers/auth_provider.dart';
-import 'register_user_screen.dart';
-import 'register_trabajador_screen.dart';      // ✔ CORRECTO
+
+// Pantallas
+import 'register_trabajador_screen.dart';
+import 'register_employer_screen.dart';
 import 'complete_profile_form.dart';
 import 'seleccion_screen.dart';
-import 'home_trabajador.dart';                // ✔ REDIRECCIÓN CORRECTA
+import 'home_trabajador.dart';
 import 'home_user.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -25,16 +28,15 @@ class _LoginScreenState extends State<LoginScreen> {
   final passwordController = TextEditingController();
 
   // ======================================================
-  // 🔥 LÓGICA DESPUÉS DEL LOGIN (ACTUALIZADA)
+  // 🔥 LÓGICA DESPUÉS DEL LOGIN
   // ======================================================
   Future<void> _afterLogin(BuildContext context) async {
     final auth = context.read<AuthProvider>();
 
-    final bool isTrabajador = auth.role == 'trabajador';  // ✔ CORRECTO
+    final bool isTrabajador = auth.role == 'trabajador';
     final String? token = auth.token;
-    final int userId = auth.userId ?? 0;
 
-    // Usuario normal → directo al home
+    // Usuario normal → home usuario
     if (!isTrabajador || token == null) {
       Navigator.pushReplacement(
         context,
@@ -44,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // ===============================
-    // 1️⃣ Verificar si tiene perfil
+    // 1️⃣ Verificar si el trabajador tiene perfil laboral
     // ===============================
     bool tienePerfil = false;
 
@@ -105,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     // ===============================
-    // 3️⃣ Mostrar formulario de perfil
+    // 3️⃣ Mostrar formulario de perfil laboral
     // ===============================
     await showDialog(
       context: context,
@@ -240,6 +242,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   usernameController.text.trim(),
                                   passwordController.text.trim(),
                                 );
+
                                 if (role != null) {
                                   await _afterLogin(context);
                                 }
@@ -247,42 +250,43 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                       child: auth.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text(
-                              'Login',
-                              style: TextStyle(fontSize: 16),
-                            ),
+                          : const Text('Login', style: TextStyle(fontSize: 16)),
                     ),
                   ),
+
                   const SizedBox(height: 16),
 
+                  // ======================================================
+                  // BOTÓN PARA REGISTRO (TRABAJADOR / EMPLEADOR)
+                  // ======================================================
                   TextButton(
                     onPressed: () {
-                      if (widget.rol == 'usuario') {
+                      if (widget.rol == 'trabajador') {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => RegisterUserScreen(rol: 'usuario'),
+                            builder: (_) =>
+                                RegisterTrabajadorScreen(rol: 'trabajador'),
                           ),
                         );
                       } else {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => RegisterTrabajadorScreen(rol: 'trabajador'),
+                            builder: (_) => const RegisterEmployerScreen(),
                           ),
                         );
                       }
                     },
                     child: Text(
-                      widget.rol == 'usuario'
-                          ? '¿No tienes cuenta? Regístrate aquí'
-                          : '¿Eres nuevo trabajador? Regístrate aquí',
+                      widget.rol == 'trabajador'
+                          ? '¿Nuevo trabajador? Regístrate aquí'
+                          : '¿Nuevo empleador? Regístrate aquí',
                       style: const TextStyle(
                         color: Color(0xFF8B5CF6),
-                        fontWeight: FontWeight.w600,
-                      ),
+                        fontWeight: FontWeight.w600),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),
