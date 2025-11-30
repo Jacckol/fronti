@@ -1,35 +1,61 @@
+```gitignore
+# ========================
+# ARCHIVOS IGNORADOS
+# ========================
 
+# Configuración de IDEs
 .idea/
+.vscode/
 
-
-backend/node_modules
-
+# Backend Node
+backend/node_modules/
 
 # Miscellaneous
-flutter_frontend/*.class
-flutter_frontend/*.log
-flutter_frontend/*.pyc
-flutter_frontend/*.swp
-flutter_frontend/.DS_Store
-flutter_frontend/.atom/
-flutter_frontend/.buildlog/
-flutter_frontend/.history
-flutter_frontend/.svn/
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
 
 # IntelliJ related
-flutter_frontend/*.iml
-flutter_frontend/*.ipr
-flutter_frontend/*.iws
-flutter_frontend/.idea/
+*.iml
+*.ipr
+*.iws
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# Flutter/Dart genéricos (para cualquier proyecto Flutter en el repo)
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
 
-# Flutter/Dart/Pub related
-flutter_frontend/**/doc/api/
-flutter_frontend/**/ios/Flutter/.last_build_id
+# Web related (Flutter)
+lib/generated_plugin_registrant.dart
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio build artifacts (genéricos)
+android/app/debug
+android/app/profile
+android/app/release
+
+# Carpeta específica del proyecto flutter_frontend
 flutter_frontend/.dart_tool/
 flutter_frontend/.flutter-plugins
 flutter_frontend/.flutter-plugins-dependencies
@@ -37,18 +63,6 @@ flutter_frontend/.packages
 flutter_frontend/.pub-cache/
 flutter_frontend/.pub/
 flutter_frontend/build/
-
-# Web related
-flutter_frontend/lib/generated_plugin_registrant.dart
-
-# Symbolication related
-flutter_frontend/app.*.symbols
-
-# Obfuscation related
-flutter_frontend/app.*.map.json
-
-# Android Studio will place build artifacts here
 flutter_frontend/android/app/debug
 flutter_frontend/android/app/profile
 flutter_frontend/android/app/release
-

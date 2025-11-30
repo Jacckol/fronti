@@ -1,21 +1,42 @@
-# BlogApp Crud Rest Api Express Flutter
-  RESTFUL API using express node as a backend and flutter as a front end
-  JWT auth for user login.
+# BlogApp CRUD Rest API Express + Flutter (flutter_frontend)
 
-# CRUD
-  BLOG APP with user registration functionalities 
-  you can add create delete update your post using the app(frontend, flutter)
-  and express node (backend) mongodb (database)
+RESTFUL API usando Express (Node.js) como backend y Flutter como frontend.  
+Autenticación con JWT para login de usuarios.
 
-- HTTP REQUEST
- <img src="/images/http_request.JPG" width="300"> 
+## Funcionalidades principales
 
-- Login / Register Screen
-<p float="left">
-<img src="/images/1.png" width="300">  <img src="/images/2.png" width="300">
- </p>
+- Registro y login de usuarios.
+- CRUD de posts (crear, leer, actualizar, eliminar).
+- Consumo de API desde Flutter (frontend).
+- Backend con Node/Express.
+- Base de datos (originalmente MongoDB, ahora adaptado a otro backend en tu caso).
 
-- Home Screen / CRUD
-<p float="left">
-<img src="/images/3.png" width="300">  <img src="/images/4.png" width="300"> <img src="/images/4.png" width="300">
- </p>
+## Screenshots originales
+
+- HTTP REQUEST  
+  <img src="/images/http_request.JPG" width="300"> 
+
+- Pantallas de Login / Registro  
+  <p float="left">
+    <img src="/images/1.png" width="300">  
+    <img src="/images/2.png" width="300">
+  </p>
+
+- Pantalla Home / CRUD  
+  <p float="left">
+    <img src="/images/3.png" width="300">  
+    <img src="/images/4.png" width="300">  
+    <img src="/images/4.png" width="300">
+  </p>
+
+## flutter_frontend
+
+Dentro de la carpeta `flutter_frontend` tienes el proyecto Flutter que estás usando como app móvil  
+(roles, login, fotos, etc.).
+
+### Cómo correr el frontend
+
+```bash
+cd flutter_frontend
+flutter pub get
+flutter run
