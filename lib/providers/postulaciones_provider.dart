@@ -44,7 +44,7 @@ class PostulacionesProvider extends ChangeNotifier {
   final List<Postulacion> _postulaciones = [];
   int _autoId = 1;
 
-  // Obtener todas
+  // Todas
   List<Postulacion> get todas => List.unmodifiable(_postulaciones);
 
   // Filtros
@@ -57,12 +57,13 @@ class PostulacionesProvider extends ChangeNotifier {
   List<Postulacion> get rechazadas =>
       _postulaciones.where((p) => p.estado == EstadoPostulacion.rechazada).toList();
 
+  // Contadores
   int get totalPendientes => pendientes.length;
   int get totalAceptadas => aceptadas.length;
   int get totalRechazadas => rechazadas.length;
 
   /// ===========================================================
-  /// 🔹 Agregar una postulación desde una oferta
+  /// 🔹 Agregar una postulación desde una oferta (OfertasScreen)
   /// ===========================================================
   void agregarDesdeTrabajo(Map<String, dynamic> trabajo) {
     final nueva = Postulacion(
@@ -70,11 +71,17 @@ class PostulacionesProvider extends ChangeNotifier {
       trabajoId: trabajo['id'] ?? 0,
       titulo: trabajo['titulo'] ?? 'Trabajo sin título',
       categoria: trabajo['categoria'] ?? 'Sin categoría',
-      empleador: trabajo['publicadoPor'] ?? 'Desconocido',
+      empleador: (trabajo['empleador']?['nombre'] ??
+              trabajo['publicadoPor'] ??
+              'Desconocido')
+          .toString(),
       ubicacion: trabajo['ubicacion'] ?? 'Sin ubicación',
-      presupuesto: (trabajo['presupuesto'] ?? 0).toDouble(),
-      duracion: trabajo['duracion'] ?? '',
-      mensaje: "Estoy interesado en este trabajo y tengo experiencia para realizarlo.",
+      presupuesto: double.tryParse(
+              (trabajo['salario'] ?? trabajo['presupuesto'] ?? 0).toString()) ??
+          0.0,
+      duracion: trabajo['duracion'] ?? 'No especificada',
+      mensaje:
+          "Estoy interesado en este trabajo y tengo experiencia para realizarlo.",
       fecha: DateTime.now(),
     );
 
@@ -83,13 +90,13 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   /// ===========================================================
-  /// 🔹 Cambiar estado (ACEPTAR / RECHAZAR)
+  /// 🔹 Cambiar estado (ACEPTAR / RECHAZAR / PENDIENTE)
   /// ===========================================================
   void cambiarEstado(int id, EstadoPostulacion nuevoEstado) {
-    final idx = _postulaciones.indexWhere((p) => p.id == id);
-    if (idx == -1) return;
+    final index = _postulaciones.indexWhere((p) => p.id == id);
+    if (index == -1) return;
 
-    _postulaciones[idx].estado = nuevoEstado;
+    _postulaciones[index].estado = nuevoEstado;
     notifyListeners();
   }
 
@@ -101,7 +108,9 @@ class PostulacionesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-
+  /// ===========================================================
+  /// 🔹 Reset (limpiar todo)
+  /// ===========================================================
   void reset() {
     _postulaciones.clear();
     _autoId = 1;

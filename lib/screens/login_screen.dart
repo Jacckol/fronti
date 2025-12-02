@@ -11,8 +11,13 @@ import 'register_trabajador_screen.dart';
 import 'register_employer_screen.dart';
 import 'complete_profile_form.dart';
 import 'seleccion_screen.dart';
+
+// 👇 Si MÁS ADELANTE mueves el home del trabajador a /screens/trabajador/
+// cambia este import a:  'trabajador/home_trabajador.dart';
 import 'home_trabajador.dart';
-import 'home_user.dart';
+
+// 👇 CAMBIO IMPORTANTE: ahora está en /screens/empleador/home_empleador_screen.dart
+import 'empleador/home_empleador_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   final String rol;
@@ -36,18 +41,23 @@ class _LoginScreenState extends State<LoginScreen> {
     final bool isTrabajador = auth.role == 'trabajador';
     final String? token = auth.token;
 
-    // Usuario normal → home usuario
-    if (!isTrabajador || token == null) {
+    // ===========================
+    // 🔵 SI ES EMPLEADOR → IR A SU HOME
+    // ===========================
+    if (!isTrabajador) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const HomeUserScreen()),
+        MaterialPageRoute(builder: (_) => const HomeEmpleadorScreen()),
       );
       return;
     }
 
-    // ===============================
-    // 1️⃣ Verificar si el trabajador tiene perfil laboral
-    // ===============================
+    // 🔵 SI ES TRABAJADOR Y NO TIENE TOKEN → FUERA
+    if (token == null) return;
+
+    // ====================================
+    // 🔥 1️⃣ Verificar si tiene perfil laboral
+    // ====================================
     bool tienePerfil = false;
 
     try {
@@ -74,9 +84,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // ===============================
-    // 2️⃣ Preguntar si desea completarlo
-    // ===============================
+    // ====================================
+    // 🔥 2️⃣ Preguntar si quiere completar perfil
+    // ====================================
     final wantToComplete = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -106,9 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // ===============================
-    // 3️⃣ Mostrar formulario de perfil laboral
-    // ===============================
+    // ====================================
+    // 🔥 3️⃣ Mostrar formulario de perfil
+    // ====================================
     await showDialog(
       context: context,
       barrierDismissible: false,
@@ -121,7 +131,8 @@ class _LoginScreenState extends State<LoginScreen> {
             initialData: null,
             onSubmit: (data, token) async {
               try {
-                final url = Uri.parse('http://10.0.2.2:4000/api/perfil-laboral');
+                final url =
+                    Uri.parse('http://10.0.2.2:4000/api/perfil-laboral');
                 final response = await http.post(
                   url,
                   headers: {
@@ -135,9 +146,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   auth.setPerfilCompleto(true);
 
                   Navigator.of(context).pop();
+
                   Navigator.pushReplacement(
                     context,
-                    MaterialPageRoute(builder: (_) => const HomeTrabajadorScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const HomeTrabajadorScreen(),
+                    ),
                   );
                 }
               } catch (e) {
@@ -250,15 +264,15 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                       child: auth.isLoading
                           ? const CircularProgressIndicator(color: Colors.white)
-                          : const Text('Login', style: TextStyle(fontSize: 16)),
+                          : const Text(
+                              'Login',
+                              style: TextStyle(fontSize: 16),
+                            ),
                     ),
                   ),
 
                   const SizedBox(height: 16),
 
-                  // ======================================================
-                  // BOTÓN PARA REGISTRO (TRABAJADOR / EMPLEADOR)
-                  // ======================================================
                   TextButton(
                     onPressed: () {
                       if (widget.rol == 'trabajador') {
@@ -284,7 +298,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           : '¿Nuevo empleador? Regístrate aquí',
                       style: const TextStyle(
                         color: Color(0xFF8B5CF6),
-                        fontWeight: FontWeight.w600),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],

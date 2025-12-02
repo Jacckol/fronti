@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/postulaciones_provider.dart';
+import 'postulacion_detalle_screen.dart';
 
 class MisPostulacionesScreen extends StatefulWidget {
   const MisPostulacionesScreen({super.key});
@@ -20,6 +21,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     final prov = context.watch<PostulacionesProvider>();
 
     List<Postulacion> lista;
+
     switch (_filtro) {
       case FiltroPostulacion.pendientes:
         lista = prov.pendientes;
@@ -30,7 +32,6 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
       case FiltroPostulacion.rechazadas:
         lista = prov.rechazadas;
         break;
-      case FiltroPostulacion.todas:
       default:
         lista = prov.todas;
     }
@@ -45,7 +46,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         children: [
           const SizedBox(height: 16),
 
-          // 🔹 Contadores (como las tarjetas de arriba)
+          // 🔹 Contadores
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -76,7 +77,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 16),
 
-          // 🔹 Filtros tipo tabs
+          // 🔹 Filtros
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -113,6 +114,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
+  // ==========================================================
+  // 🔹 Tarjeta Contador
+  // ==========================================================
   Widget _contadorCard({
     required String label,
     required int cantidad,
@@ -150,15 +154,14 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
+  // ==========================================================
+  // 🔹 Chip de filtro
+  // ==========================================================
   Widget _filtroChip(String texto, FiltroPostulacion value) {
     final bool activo = _filtro == value;
     return Expanded(
       child: GestureDetector(
-        onTap: () {
-          setState(() {
-            _filtro = value;
-          });
-        },
+        onTap: () => setState(() => _filtro = value),
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 2),
           padding: const EdgeInsets.symmetric(vertical: 6),
@@ -181,6 +184,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
+  // ==========================================================
+  // 🔹 Tarjeta de postulación
+  // ==========================================================
   Widget _cardPostulacion(Postulacion p) {
     Color etiquetaColor;
     Color etiquetaTexto;
@@ -197,7 +203,6 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         etiquetaTexto = const Color(0xFFB91C1C);
         etiquetaTextoStr = 'Rechazada';
         break;
-      case EstadoPostulacion.pendiente:
       default:
         etiquetaColor = const Color(0xFFFFF7E0);
         etiquetaTexto = const Color(0xFF92400E);
@@ -222,7 +227,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Título + estado
+          // 🔹 Título + Estado
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -230,9 +235,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
                 child: Text(
                   p.titulo,
                   style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
+                      fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
               Container(
@@ -253,8 +256,10 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          // Categoria + empleador
+
+          const SizedBox(height: 12),
+
+          // 🔹 Categoría + Empleador
           Row(
             children: [
               Container(
@@ -280,75 +285,45 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          // Ubicación + dinero + duración
+
+          const SizedBox(height: 12),
+
+          // 🔹 Botones
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.location_on_outlined,
-                      size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    p.ubicacion,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  const Icon(Icons.attach_money,
-                      size: 14, color: Colors.grey),
-                  Text(
-                    '${p.presupuesto.toStringAsFixed(0)}€',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-              Row(
-                children: [
-                  const Icon(Icons.access_time,
-                      size: 14, color: Colors.grey),
-                  const SizedBox(width: 4),
-                  Text(
-                    p.duracion,
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Mensaje del usuario
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Tu mensaje: ${p.mensaje}',
-              style: const TextStyle(fontSize: 12),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Fecha + botón
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Postulado: ${p.fecha.day}/${p.fecha.month}/${p.fecha.year}',
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
-              ),
               TextButton(
                 onPressed: () {
-                  // Aquí luego puedes abrir chat o lo que quieras
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          PostulacionDetalleScreen(postulacion: p),
+                    ),
+                  );
                 },
                 child: const Text(
                   'Ver Detalles',
                   style: TextStyle(fontSize: 12),
+                ),
+              ),
+              const SizedBox(width: 12),
+              TextButton(
+                onPressed: () {
+                  context
+                      .read<PostulacionesProvider>()
+                      .eliminarPostulacion(p.id);
+
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text("Postulación eliminada"),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'Eliminar',
+                  style: TextStyle(fontSize: 12, color: Colors.red),
                 ),
               ),
             ],
