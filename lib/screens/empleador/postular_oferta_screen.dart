@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../providers/postulaciones_provider.dart';
 
-class PostularOfertaScreen extends StatelessWidget {
+class PostularOfertaScreen extends StatefulWidget {
   final int trabajoId;
   final String titulo;
   final String categoria;
@@ -19,6 +21,19 @@ class PostularOfertaScreen extends StatelessWidget {
     required this.salario,
     required this.descripcion,
   });
+
+  @override
+  State<PostularOfertaScreen> createState() => _PostularOfertaScreenState();
+}
+
+class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
+  final mensajeCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    mensajeCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,9 +55,9 @@ class PostularOfertaScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            // Titulo
+            // TÍTULO
             Text(
-              titulo,
+              widget.titulo,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -52,9 +67,9 @@ class PostularOfertaScreen extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            // Empresa / Publicado por
+            // EMPRESA
             Text(
-              "Publicado por: $empresa",
+              "Publicado por: ${widget.empresa}",
               style: const TextStyle(
                 fontSize: 14,
                 color: Colors.grey,
@@ -63,7 +78,7 @@ class PostularOfertaScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Categoria
+            // CATEGORÍA
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
@@ -71,7 +86,7 @@ class PostularOfertaScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
-                categoria,
+                widget.categoria,
                 style: const TextStyle(
                   fontSize: 14,
                   color: Color(0xFF7C3AED),
@@ -82,7 +97,7 @@ class PostularOfertaScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Descripcion
+            // DESCRIPCIÓN
             const Text(
               "Descripción del Trabajo",
               style: TextStyle(
@@ -94,19 +109,18 @@ class PostularOfertaScreen extends StatelessWidget {
             const SizedBox(height: 8),
 
             Text(
-              descripcion,
+              widget.descripcion,
               style: const TextStyle(fontSize: 14, height: 1.4),
             ),
 
             const SizedBox(height: 20),
 
-            // Ubicación
             Row(
               children: [
                 const Icon(Icons.location_on_outlined, size: 20),
                 const SizedBox(width: 6),
                 Text(
-                  ubicacion,
+                  widget.ubicacion,
                   style: const TextStyle(fontSize: 14),
                 ),
               ],
@@ -114,13 +128,12 @@ class PostularOfertaScreen extends StatelessWidget {
 
             const SizedBox(height: 14),
 
-            // Salario
             Row(
               children: [
                 const Icon(Icons.attach_money, size: 20),
                 const SizedBox(width: 4),
                 Text(
-                  salario,
+                  widget.salario,
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -132,18 +145,55 @@ class PostularOfertaScreen extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            // Botón para postular
+            const Text(
+              "Mensaje al empleador:",
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
+
+            TextField(
+              controller: mensajeCtrl,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: "Escribe un mensaje al empleador...",
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 30),
+
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  // Acción de postulación
+                  final mensaje = mensajeCtrl.text.trim().isEmpty
+                      ? "Estoy interesado en este trabajo."
+                      : mensajeCtrl.text.trim();
+
+                  // 🚀 AGREGAR LA POSTULACIÓN
+                  context.read<PostulacionesProvider>().agregarDesdeTrabajo({
+                    "id": widget.trabajoId,
+                    "titulo": widget.titulo,
+                    "categoria": widget.categoria,
+                    "ubicacion": widget.ubicacion,
+                    "salario": widget.salario,
+                    "descripcion": widget.descripcion,
+                    "empleador": {"nombre": widget.empresa},
+                    "duracion": "No especificada",
+                    "mensaje": mensaje,
+                  });
+
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text("Postulado al trabajo #$trabajoId"),
+                      content: Text(
+                          "Postulación enviada al trabajo \"${widget.titulo}\""),
                       backgroundColor: Colors.green,
                     ),
                   );
+
+                  Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF111827),

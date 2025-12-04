@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 // 👇 ESTE ES EL ARCHIVO DONDE REALMENTE ESTÁ TU LISTA DE OFERTAS
 import '../ofertas_screen.dart';
 
+// 👇 IMPORTA LA PANTALLA DE BILLETERA PARA EMPLEADOR
+import 'mi_billetera_screen.dart';
+
 class HomeEmpleadorScreen extends StatelessWidget {
   const HomeEmpleadorScreen({super.key});
 
@@ -53,7 +56,7 @@ class HomeEmpleadorScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
-            // 👉 VER SERVICIOS / TRABAJOS PUBLICADOS
+            // 👉 VER SERVICIOS
             _menuButton(
               context,
               icon: Icons.search,
@@ -64,7 +67,7 @@ class HomeEmpleadorScreen extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => OfertasScreen(), // ✔ TU PANTALLA REAL
+                    builder: (_) => OfertasScreen(),
                   ),
                 );
               },
@@ -72,13 +75,21 @@ class HomeEmpleadorScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
+            // 👉 MI BILLETERA — EMPLEADOR
             _menuButton(
               context,
               icon: Icons.wallet_outlined,
               color: Colors.orange,
               title: "Mi Billetera",
               subtitle: "Control de gastos en servicios",
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const MiBilleteraEmpleadorScreen(),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 15),

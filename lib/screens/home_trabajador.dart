@@ -7,10 +7,17 @@ import '../providers/auth_provider.dart';
 import 'login_screen.dart';
 import 'perfil_trabajador_screen.dart';
 import 'mis_postulaciones_screen.dart';
-import 'ofertas_screen.dart';
 import 'publicaciones_screen.dart';
 import 'publicar_servicio_screen.dart';
-import 'mi_billetera_screen.dart';
+
+// SERVICIOS (del trabajador)
+import 'ofertas_screen.dart';
+
+// TRABAJOS (del empleador)  ⭐ ESTA ES LA CORRECTA PARA TRABAJADOR
+import 'ofertas_trabajos_screen.dart';
+
+// Billetera
+import 'billetera_trabajador_screen.dart';
 
 class HomeTrabajadorScreen extends StatelessWidget {
   const HomeTrabajadorScreen({super.key});
@@ -103,30 +110,29 @@ class HomeTrabajadorScreen extends StatelessWidget {
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    // 🔹 Más alto el contenedor para evitar overflow
                     childAspectRatio: 0.95,
                   ),
                   itemCount: 6,
                   itemBuilder: (context, index) {
                     switch (index) {
-                      // 0️⃣ — Buscar Ofertas
+
+                      // 🔵 Buscar ofertas de TRABAJOS (empleador)
                       case 0:
                         return _menuCard(
                           icon: Icons.search,
                           color: Colors.blue,
                           title: 'Buscar\nOfertas',
-                          subtitle: 'Oportunidades laborales',
+                          subtitle: 'Trabajos disponibles',
                           onTap: () {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const OfertasScreen(),
+                                builder: (_) => const OfertasTrabajosScreen(),
                               ),
                             );
                           },
                         );
 
-                      // 1️⃣ — Mi Perfil
                       case 1:
                         return _menuCard(
                           icon: Icons.person,
@@ -147,7 +153,6 @@ class HomeTrabajadorScreen extends StatelessWidget {
                           },
                         );
 
-                      // 2️⃣ — Mis Postulaciones
                       case 2:
                         return _menuCard(
                           icon: Icons.note_alt_outlined,
@@ -158,13 +163,13 @@ class HomeTrabajadorScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const MisPostulacionesScreen(),
+                                builder: (_) =>
+                                    const MisPostulacionesScreen(),
                               ),
                             );
                           },
                         );
 
-                      // 3️⃣ — Publicar Servicio
                       case 3:
                         return _menuCard(
                           icon: Icons.add_circle_outline,
@@ -175,13 +180,13 @@ class HomeTrabajadorScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PublicarServicioScreen(),
+                                builder: (_) =>
+                                    const PublicarServicioScreen(),
                               ),
                             );
                           },
                         );
 
-                      // 4️⃣ — Mi Billetera
                       case 4:
                         return _menuCard(
                           icon: Icons.account_balance_wallet,
@@ -192,13 +197,13 @@ class HomeTrabajadorScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const MiBilleteraScreen(),
+                                builder: (_) =>
+                                    const BilleteraTrabajadorScreen(),
                               ),
                             );
                           },
                         );
 
-                      // 5️⃣ — Mis Publicaciones
                       case 5:
                         return _menuCard(
                           icon: Icons.list_alt,
@@ -254,7 +259,6 @@ class HomeTrabajadorScreen extends StatelessWidget {
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          mainAxisSize: MainAxisSize.max,
           children: [
             Container(
               padding: const EdgeInsets.all(10),
