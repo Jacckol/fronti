@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../providers/postulaciones_provider.dart';
+import '../../providers/auth_provider.dart';
 
 class PostularOfertaScreen extends StatefulWidget {
   final int trabajoId;
@@ -37,6 +39,9 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.read<AuthProvider>();
+    final postProv = context.read<PostulacionesProvider>();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
       appBar: AppBar(
@@ -105,7 +110,6 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             const SizedBox(height: 8),
 
             Text(
@@ -164,36 +168,48 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
 
             const SizedBox(height: 30),
 
+            // BOTÓN POSTULAR
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   final mensaje = mensajeCtrl.text.trim().isEmpty
                       ? "Estoy interesado en este trabajo."
                       : mensajeCtrl.text.trim();
 
-                  // 🚀 AGREGAR LA POSTULACIÓN
-                  context.read<PostulacionesProvider>().agregarDesdeTrabajo({
-                    "id": widget.trabajoId,
-                    "titulo": widget.titulo,
-                    "categoria": widget.categoria,
-                    "ubicacion": widget.ubicacion,
-                    "salario": widget.salario,
-                    "descripcion": widget.descripcion,
-                    "empleador": {"nombre": widget.empresa},
-                    "duracion": "No especificada",
-                    "mensaje": mensaje,
-                  });
+                  // 🚀 NUEVO: AHORA ENVÍAMOS TODOS LOS CAMPOS REQUERIDOS
+                  final ok = await postProv.crearPostulacion(
+                    trabajoId: widget.trabajoId,
+                    userId: auth.userId!,
+                    mensaje: mensaje,
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                          "Postulación enviada al trabajo \"${widget.titulo}\""),
-                      backgroundColor: Colors.green,
-                    ),
+                    // 🔥 CAMPOS OBLIGATORIOS
+                    titulo: widget.titulo,
+                    categoria: widget.categoria,
+                    empleador: widget.empresa,
+                    ubicacion: widget.ubicacion,
+                    presupuesto: double.tryParse(widget.salario) ?? 0,
+                    duracion: "No especificada",
                   );
 
-                  Navigator.pop(context);
+                  if (ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                            "Postulación enviada al trabajo \"${widget.titulo}\""),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+
+                    Navigator.pop(context);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Error al enviar la postulación ❌"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF111827),

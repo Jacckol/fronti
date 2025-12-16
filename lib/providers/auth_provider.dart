@@ -8,19 +8,26 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  String? _role;
-  String? get role => _role;
-
-  String? _userName;
-  String? get userName => _userName;
-
-  int? _userId;
-  int? get userId => _userId;
-
+  // ============================================================
+  // 🔹 CAMPOS DEL USUARIO
+  // ============================================================
+  String? _role;                // "trabajador" | "empleador"
+  String? _userName;            // nombre
+  int? _userId;                 // ID tabla users
+  int _empleadorId = 0;         // ID tabla empleadores
+  int _trabajadorId = 0;        // ID tabla trabajadores
   String? _token;
-  String? get token => _token;
-
   bool _perfilCompleto = false;
+
+  // ============================================================
+  // 🔹 GETTERS
+  // ============================================================
+  String? get role => _role;
+  String? get userName => _userName;
+  int? get userId => _userId;
+  int get empleadorId => _empleadorId;
+  int get trabajadorId => _trabajadorId;
+  String? get token => _token;
   bool get perfilCompleto => _perfilCompleto;
 
   set isLoading(bool value) {
@@ -29,36 +36,58 @@ class AuthProvider with ChangeNotifier {
   }
 
   // ============================================================
-  // 🔹 LOGIN (GUARDA TOKEN Y DATOS)
+  // 🔹 LOGIN
   // ============================================================
-  Future<String?> login(String username, String password) async {
+  Future<String?> login(String email, String password) async {
     isLoading = true;
 
     try {
-      final response = await _authService.login(username, password);
+      final response = await _authService.login(email, password);
+      debugPrint("🟡 RESPONSE LOGIN: $response");
 
       if (response != null) {
-        final user = response['user'] ?? {};
+        final user = response["user"] ?? {};
+        final empleadorData = response["empleador"];
+        final trabajadorData = response["trabajador"];
 
-        _role = response['rol'];
-        _userName = user['nombre'] ?? 'Usuario';
-        _userId = user['id'];
-        _token = response['token'];
-        _perfilCompleto = response['perfilCompleto'] ?? false;
+        // Datos base
+        _role = response["rol"]; // ⚠️ el backend manda "rol"
+        _userName = user["nombre"] ?? "Usuario";
+        _userId = user["id"];
+        _token = response["token"];
+        _perfilCompleto = response["perfilCompleto"] ?? false;
 
-        // Guardar en memoria local
+        // IDs correctos
+        _empleadorId =
+            (empleadorData != null && empleadorData["id"] != null)
+                ? empleadorData["id"]
+                : 0;
+
+        _trabajadorId =
+            (trabajadorData != null && trabajadorData["id"] != null)
+                ? trabajadorData["id"]
+                : 0;
+
+        debugPrint(
+          "✅ LOGIN OK → role=$_role empleadorId=$_empleadorId trabajadorId=$_trabajadorId",
+        );
+
+        // Guardar sesión
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('token', _token ?? '');
-        await prefs.setString('role', _role ?? '');
-        await prefs.setString('userName', _userName ?? '');
-        await prefs.setInt('userId', _userId ?? 0);
+        await prefs.setString("token", _token ?? "");
+        await prefs.setString("role", _role ?? "");
+        await prefs.setString("userName", _userName ?? "");
+        await prefs.setInt("userId", _userId ?? 0);
+        await prefs.setInt("empleadorId", _empleadorId);
+        await prefs.setInt("trabajadorId", _trabajadorId);
+        await prefs.setBool("perfilCompleto", _perfilCompleto);
 
         isLoading = false;
         notifyListeners();
         return _role;
       }
     } catch (e) {
-      print("❌ Error login provider: $e");
+      debugPrint("❌ Error en login Provider: $e");
     }
 
     isLoading = false;
@@ -67,13 +96,21 @@ class AuthProvider with ChangeNotifier {
   }
 
   // ============================================================
-  // 🔹 REGISTRO DE USUARIO NORMAL
+  // 🔹 REGISTRO USUARIO BASE
   // ============================================================
-  Future<bool> registerUser(String nombre, String password, String email) async {
+  Future<bool> registerUser(
+    String nombre,
+    String password,
+    String email,
+  ) async {
     isLoading = true;
     notifyListeners();
 
-    final ok = await _authService.registerUser(nombre, password, email);
+    final ok = await _authService.registerUser(
+      nombre,
+      password,
+      email,
+    );
 
     isLoading = false;
     notifyListeners();
@@ -81,11 +118,15 @@ class AuthProvider with ChangeNotifier {
   }
 
   // ============================================================
-  // 🔹 REGISTRO DE TRABAJADOR (CORREGIDO)
+  // 🔹 REGISTRO TRABAJADOR
   // ============================================================
   Future<bool> registerWorker(
-      String nombre, String username, String password, String email, String telefono) async {
-
+    String nombre,
+    String username,
+    String password,
+    String email,
+    String telefono,
+  ) async {
     isLoading = true;
     notifyListeners();
 
@@ -105,8 +146,12 @@ class AuthProvider with ChangeNotifier {
   // ============================================================
   // 🔹 PERFIL COMPLETO
   // ============================================================
-  void setPerfilCompleto(bool value) {
+  Future<void> setPerfilCompleto(bool value) async {
     _perfilCompleto = value;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool("perfilCompleto", value);
+
     notifyListeners();
   }
 
@@ -116,10 +161,13 @@ class AuthProvider with ChangeNotifier {
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
 
-    _token = prefs.getString('token');
-    _role = prefs.getString('role');
-    _userName = prefs.getString('userName');
-    _userId = prefs.getInt('userId');
+    _token = prefs.getString("token");
+    _role = prefs.getString("role");
+    _userName = prefs.getString("userName");
+    _userId = prefs.getInt("userId");
+    _empleadorId = prefs.getInt("empleadorId") ?? 0;
+    _trabajadorId = prefs.getInt("trabajadorId") ?? 0;
+    _perfilCompleto = prefs.getBool("perfilCompleto") ?? false;
 
     notifyListeners();
   }
@@ -134,6 +182,8 @@ class AuthProvider with ChangeNotifier {
     _role = null;
     _userName = null;
     _userId = null;
+    _empleadorId = 0;
+    _trabajadorId = 0;
     _token = null;
     _perfilCompleto = false;
 

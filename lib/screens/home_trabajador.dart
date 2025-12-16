@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+// Providers
 import '../providers/auth_provider.dart';
+import '../providers/notificaciones_provider.dart';
 
-// Pantallas correctas para TRABAJADOR
-import 'login_screen.dart';
+// Pantallas del trabajador
 import 'perfil_trabajador_screen.dart';
 import 'mis_postulaciones_screen.dart';
 import 'publicaciones_screen.dart';
 import 'publicar_servicio_screen.dart';
-
-// SERVICIOS (del trabajador)
 import 'ofertas_screen.dart';
-
-// TRABAJOS (del empleador)  ⭐ ESTA ES LA CORRECTA PARA TRABAJADOR
+import 'billetera_trabajador_screen.dart';
 import 'ofertas_trabajos_screen.dart';
 
-// Billetera
-import 'billetera_trabajador_screen.dart';
+// Pantalla unificada de notificaciones
+import '../screens/notificaciones/notificaciones_screen.dart';
+
+// Login
+import 'login_screen.dart';
 
 class HomeTrabajadorScreen extends StatelessWidget {
   const HomeTrabajadorScreen({super.key});
@@ -29,6 +30,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF9F7FF),
+
       appBar: AppBar(
         automaticallyImplyLeading: false,
         backgroundColor: Colors.white,
@@ -42,6 +44,53 @@ class HomeTrabajadorScreen extends StatelessWidget {
           ),
         ),
         actions: [
+          // 🔵 ÍCONO DE NOTIFICACIONES UNIFICADO
+          Consumer<NotificacionesProvider>(
+            builder: (_, noti, __) {
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications,
+                      color: Color(0xFF8B5CF6),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificacionesScreen(),
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 🔴 Badge de notificaciones no leídas
+                  if (noti.unreadCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          "${noti.unreadCount}",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          // 🔴 CERRAR SESIÓN
           TextButton.icon(
             onPressed: () async {
               final confirmar = await showDialog<bool>(
@@ -82,6 +131,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
         ],
       ),
 
+      // ======================== BODY ========================
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -116,8 +166,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     switch (index) {
 
-                      // 🔵 Buscar ofertas de TRABAJOS (empleador)
-                      case 0:
+                      case 0: // BUSCAR TRABAJOS
                         return _menuCard(
                           icon: Icons.search,
                           color: Colors.blue,
@@ -133,7 +182,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
                           },
                         );
 
-                      case 1:
+                      case 1: // PERFIL
                         return _menuCard(
                           icon: Icons.person,
                           color: Colors.purple,
@@ -153,7 +202,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
                           },
                         );
 
-                      case 2:
+                      case 2: // POSTULACIONES
                         return _menuCard(
                           icon: Icons.note_alt_outlined,
                           color: Colors.green,
@@ -163,14 +212,13 @@ class HomeTrabajadorScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    const MisPostulacionesScreen(),
+                                builder: (_) => const MisPostulacionesScreen(),
                               ),
                             );
                           },
                         );
 
-                      case 3:
+                      case 3: // PUBLICAR SERVICIO
                         return _menuCard(
                           icon: Icons.add_circle_outline,
                           color: Colors.orange,
@@ -180,14 +228,13 @@ class HomeTrabajadorScreen extends StatelessWidget {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    const PublicarServicioScreen(),
+                                builder: (_) => const PublicarServicioScreen(),
                               ),
                             );
                           },
                         );
 
-                      case 4:
+                      case 4: // BILLETERA
                         return _menuCard(
                           icon: Icons.account_balance_wallet,
                           color: Colors.teal,
@@ -204,7 +251,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
                           },
                         );
 
-                      case 5:
+                      case 5: // MIS PUBLICACIONES
                         return _menuCard(
                           icon: Icons.list_alt,
                           color: Colors.indigo,

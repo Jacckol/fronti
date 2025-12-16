@@ -7,10 +7,12 @@ import 'package:http/http.dart' as http;
 import '../../providers/auth_provider.dart';
 import 'ver_postulaciones_screen.dart';
 
-// 👉 EMULADOR
-const String baseUrl = "http://10.0.2.2:4000";
-// 👉 CELULAR REAL (si usas el físico, cambia arriba por: "http://192.168.100.22:4000")
 
+// 👉 EMULADOR ANDROID
+const String baseUrl = "http://10.0.2.2:4000";
+
+// 👉 CELULAR FÍSICO (solo referencia)
+// const String baseUrl = "http://192.168.100.22:4000";
 class MisPublicacionesScreen extends StatefulWidget {
   const MisPublicacionesScreen({super.key});
 

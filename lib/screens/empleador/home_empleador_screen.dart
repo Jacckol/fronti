@@ -1,41 +1,140 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-// 👇 ESTE ES EL ARCHIVO DONDE REALMENTE ESTÁ TU LISTA DE OFERTAS
+// Providers
+import '../../providers/auth_provider.dart';
+import '../../providers/notificaciones_provider.dart';
+
+// Pantallas unificadas
+import '../../screens/notificaciones/notificaciones_screen.dart';
+
+// Pantallas reales del empleador
 import '../ofertas_screen.dart';
-
-// 👇 IMPORTA LA PANTALLA DE BILLETERA PARA EMPLEADOR
 import 'mi_billetera_screen.dart';
 
-class HomeEmpleadorScreen extends StatelessWidget {
+class HomeEmpleadorScreen extends StatefulWidget {
   const HomeEmpleadorScreen({super.key});
 
   @override
+  State<HomeEmpleadorScreen> createState() => _HomeEmpleadorScreenState();
+}
+
+class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    /// 🔥 Cargar notificaciones al abrir el módulo
+    Future.microtask(() {
+      final auth = context.read<AuthProvider>();
+      final notiProv = context.read<NotificacionesProvider>();
+
+      final userId = auth.userId;
+
+      if (userId != null && userId != 0) {
+        print("🔵 Cargando notificaciones para EMPLEADOR USERID: $userId");
+        notiProv.cargarNotificaciones(userId);
+      } else {
+        print("⚠️ userId no disponible aún");
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final userId = auth.userId;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF6F7FB),
+
+      // =====================================================
+      // 🔹 APPBAR
+      // =====================================================
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const Text(
-          "Hola",
-          style: TextStyle(color: Colors.black),
-        ),
         centerTitle: true,
+        title: const Text(
+          "Portal del Empleador",
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          Consumer<NotificacionesProvider>(
+            builder: (_, noti, __) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications, color: Colors.black),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificacionesScreen(),
+                        ),
+                      );
+
+                      /// 🔄 Recargar notificaciones al volver
+                      if (userId != null && userId != 0) {
+                        noti.cargarNotificaciones(userId);
+                      }
+                    },
+                  ),
+
+                  // 🔥 Badge
+                  if (noti.unreadCount > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 18,
+                          minHeight: 18,
+                        ),
+                        child: Center(
+                          child: Text(
+                            '${noti.unreadCount}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
+
+      // =====================================================
+      // 🔹 BODY
+      // =====================================================
       body: Padding(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: ListView(
           children: [
             const Text(
               "¿Qué deseas hacer hoy?",
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
             ),
+
             const SizedBox(height: 20),
 
-            // 👉 PUBLICAR TRABAJO
+            // PUBLICAR TRABAJO
             _menuButton(
-              context,
               icon: Icons.add_circle_outline,
               color: Colors.blue,
               title: "Publicar un Trabajo",
@@ -45,8 +144,8 @@ class HomeEmpleadorScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
+            // PERFILES DESTACADOS
             _menuButton(
-              context,
               icon: Icons.group_outlined,
               color: Colors.green,
               title: "Buscar Perfiles Destacados",
@@ -56,9 +155,8 @@ class HomeEmpleadorScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
-            // 👉 VER SERVICIOS
+            // VER SERVICIOS
             _menuButton(
-              context,
               icon: Icons.search,
               color: Colors.purple,
               title: "Buscar Servicios",
@@ -66,22 +164,19 @@ class HomeEmpleadorScreen extends StatelessWidget {
               onTap: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => OfertasScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => OfertasScreen()),
                 );
               },
             ),
 
             const SizedBox(height: 15),
 
-            // 👉 MI BILLETERA — EMPLEADOR
+            // MI BILLETERA
             _menuButton(
-              context,
               icon: Icons.wallet_outlined,
               color: Colors.orange,
               title: "Mi Billetera",
-              subtitle: "Control de gastos en servicios",
+              subtitle: "Control de gastos y recargas",
               onTap: () {
                 Navigator.push(
                   context,
@@ -94,13 +189,12 @@ class HomeEmpleadorScreen extends StatelessWidget {
 
             const SizedBox(height: 15),
 
-            // 👉 MIS PUBLICACIONES (EMPLEADOR)
+            // MIS PUBLICACIONES
             _menuButton(
-              context,
               icon: Icons.post_add_outlined,
               color: Colors.blue,
               title: "Mis Publicaciones",
-              subtitle: "Ver y gestionar tus trabajos publicados",
+              subtitle: "Gestiona tus trabajos publicados",
               onTap: () => Navigator.pushNamed(context, "/misPublicaciones"),
             ),
           ],
@@ -109,8 +203,10 @@ class HomeEmpleadorScreen extends StatelessWidget {
     );
   }
 
-  Widget _menuButton(
-    BuildContext context, {
+  // =====================================================
+  // 🔧 BOTÓN REUTILIZABLE
+  // =====================================================
+  Widget _menuButton({
     required IconData icon,
     required Color color,
     required String title,
@@ -120,7 +216,6 @@ class HomeEmpleadorScreen extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 4),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
@@ -145,25 +240,27 @@ class HomeEmpleadorScreen extends StatelessWidget {
               child: Icon(icon, size: 30, color: color),
             ),
             const SizedBox(width: 15),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.black54,
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black54,
+                    ),
                   ),
-                ),
-              ],
-            )
+                ],
+              ),
+            ),
           ],
         ),
       ),

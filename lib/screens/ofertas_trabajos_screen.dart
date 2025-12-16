@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-// 👉 Importación de pantalla donde se postula
+// 👉 Pantalla donde el trabajador se postula
 import 'empleador/postular_oferta_screen.dart';
 
 const String baseUrl = "http://10.0.2.2:4000";
@@ -19,7 +19,7 @@ class _OfertasTrabajosScreenState extends State<OfertasTrabajosScreen> {
   bool loading = true;
 
   // =====================================================
-  // 🔥 CARGAR TRABAJOS DEL BACKEND
+  // 🔥 CARGAR TRABAJOS REALMENTE DEL BACKEND
   // =====================================================
   Future<void> cargarTrabajos() async {
     try {
@@ -27,10 +27,21 @@ class _OfertasTrabajosScreenState extends State<OfertasTrabajosScreen> {
 
       final resp = await http.get(url);
 
+      print("🟣 RESP API /trabajos → ${resp.statusCode}");
+      print("📌 TRABAJOS RECIBIDOS → ${resp.body}");
+
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
 
-        List lista = data is List ? data : (data["trabajos"] ?? []) as List;
+        // Si el backend devuelve lista directa → usarla
+        // Si devuelve { trabajos: [] } → usar esa
+        List lista = [];
+
+        if (data is List) {
+          lista = data;
+        } else if (data["trabajos"] is List) {
+          lista = data["trabajos"];
+        }
 
         if (!mounted) return;
 
@@ -97,7 +108,7 @@ class _OfertasTrabajosScreenState extends State<OfertasTrabajosScreen> {
                           salario:
                               (t["salario"] ?? t["presupuesto"] ?? 0).toString(),
                           empresa: t["empleador"]?["nombre"] ?? "Empleador",
-                          urgente: t["urgente"] == true,
+                          urgente: (t["urgente"] ?? false) == true,
                         );
                       },
                     ),
@@ -116,7 +127,7 @@ class _OfertasTrabajosScreenState extends State<OfertasTrabajosScreen> {
     required String categoria,
     required String ubicacion,
     required String salario,
-    required String empresa,
+       required String empresa,
     required bool urgente,
   }) {
     return Container(

@@ -9,6 +9,7 @@ import 'providers/postulaciones_provider.dart';
 import 'providers/mis_servicios_provider.dart';
 import 'providers/servicio_provider.dart';
 import 'providers/transactions_provider.dart';
+import 'providers/notificaciones_provider.dart';
 
 // 🔹 Pantallas principales
 import 'screens/seleccion_screen.dart';
@@ -26,25 +27,27 @@ import 'screens/empleador/mi_billetera_screen.dart';
 import 'screens/empleador/historial_transacciones_screen.dart';
 import 'screens/empleador/pago_paypal_screen.dart';
 
-// 🔹 Home Trabajador + módulos
+// 🔹 Home Trabajador
 import 'screens/home_trabajador.dart';
 import 'screens/perfil_trabajador_screen.dart';
 import 'screens/mis_postulaciones_screen.dart';
 import 'screens/publicar_servicio_screen.dart';
 import 'screens/publicaciones_screen.dart';
 
-// 🔥 SERVICIOS PUBLICADOS POR TRABAJADOR (YA EXISTE)
+// 🔹 Ofertas y trabajos
 import 'screens/ofertas_screen.dart';
-
-// 🔥 TRABAJOS PUBLICADOS POR EMPLEADOR (NUEVA PANTALLA)
 import 'screens/ofertas_trabajos_screen.dart';
 
+// 🔹 Notificaciones (UNIFICADA)
+import 'screens/notificaciones/notificaciones_screen.dart';
+import 'screens/notificaciones/notificacion_detalle_screen.dart';
+
 void main() {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
-  MyApp({super.key});
+  const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,10 +60,15 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MisServiciosProvider()),
         ChangeNotifierProvider(create: (_) => ServicioProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
+
+        // ⭐⭐⭐ Provider de notificaciones ⭐⭐⭐
+        ChangeNotifierProvider(create: (_) => NotificacionesProvider()),
       ],
+
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'TodoServy',
+
         theme: ThemeData(
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: const Color(0xFFF3F5F7),
@@ -71,45 +79,48 @@ class MyApp extends StatelessWidget {
 
         initialRoute: '/seleccion',
 
+        // ==========================================================
+        // 🔥 Sistema completo de rutas
+        // ==========================================================
         onGenerateRoute: (settings) {
           final args = settings.arguments as Map<String, dynamic>? ?? {};
           final rol = args['rol'];
 
           switch (settings.name) {
 
-            // ⭐ SELECCIÓN DE ROL
+            // 🔹 Selección de rol
             case '/seleccion':
-              return MaterialPageRoute(builder: (_) => SeleccionScreen());
+              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
 
-            // ⭐ LOGIN
+            // 🔹 Login
             case '/login':
               return MaterialPageRoute(
                 builder: (_) => LoginScreen(rol: rol ?? 'trabajador'),
               );
 
-            // ⭐ REGISTRO
+            // 🔹 Registro
             case '/register':
               if (rol == 'trabajador') {
                 return MaterialPageRoute(
-                  builder: (_) => RegisterTrabajadorScreen(rol: 'trabajador'),
+                  builder: (_) => const RegisterTrabajadorScreen(rol: 'trabajador'),
                 );
               }
               if (rol == 'empleador') {
                 return MaterialPageRoute(
-                  builder: (_) => RegisterEmployerScreen(),
+                  builder: (_) => const RegisterEmployerScreen(),
                 );
               }
-              return MaterialPageRoute(builder: (_) => SeleccionScreen());
+              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
 
-            // ⭐ HOME EMPLEADOR
+            // 🔹 Home Empleador
             case '/homeEmpleador':
-              return MaterialPageRoute(builder: (_) => HomeEmpleadorScreen());
+              return MaterialPageRoute(builder: (_) => const HomeEmpleadorScreen());
 
-            // ⭐ HOME TRABAJADOR
+            // 🔹 Home Trabajador
             case '/homeTrabajador':
-              return MaterialPageRoute(builder: (_) => HomeTrabajadorScreen());
+              return MaterialPageRoute(builder: (_) => const HomeTrabajadorScreen());
 
-            // ⭐ PERFIL TRABAJADOR
+            // 🔹 Perfil trabajador
             case '/perfilTrabajador':
               return MaterialPageRoute(
                 builder: (_) => PerfilTrabajadorScreen(
@@ -119,50 +130,58 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
-            // ⭐ SERVICIOS PUBLICADOS POR TRABAJADORES
+            // 🔹 Ofertas
             case '/ofertasServicios':
-              return MaterialPageRoute(builder: (_) => OfertasScreen());
+              return MaterialPageRoute(builder: (_) => const OfertasScreen());
 
-            // ⭐ TRABAJOS PUBLICADOS POR EMPLEADOR
             case '/ofertasTrabajos':
-              return MaterialPageRoute(builder: (_) => OfertasTrabajosScreen());
+              return MaterialPageRoute(builder: (_) => const OfertasTrabajosScreen());
 
-            // ⭐ MIS POSTULACIONES
+            // 🔹 Mis Postulaciones
             case '/misPostulaciones':
-              return MaterialPageRoute(builder: (_) => MisPostulacionesScreen());
+              return MaterialPageRoute(builder: (_) => const MisPostulacionesScreen());
 
-            // ⭐ PUBLICAR SERVICIO
+            // 🔹 Publicar servicios
             case '/publicarServicio':
-              return MaterialPageRoute(builder: (_) => PublicarServicioScreen());
+              return MaterialPageRoute(builder: (_) => const PublicarServicioScreen());
 
-            // ⭐ PUBLICACIONES TRABAJADOR
             case '/publicaciones':
-              return MaterialPageRoute(builder: (_) => PublicacionesScreen());
+              return MaterialPageRoute(builder: (_) => const PublicacionesScreen());
 
-            // ⭐ EMPLEADOR - PUBLICAR TRABAJO
+            // 🔹 Empleador – Publicar trabajo
             case '/publicarTrabajo':
-              return MaterialPageRoute(builder: (_) => PublicarTrabajoScreen());
+              return MaterialPageRoute(builder: (_) => const PublicarTrabajoScreen());
 
-            // ⭐ EMPLEADOR - MIS PUBLICACIONES
+            // 🔹 Empleador – Mis publicaciones
             case '/misPublicaciones':
-              return MaterialPageRoute(builder: (_) => MisPublicacionesScreen());
+              return MaterialPageRoute(builder: (_) => const MisPublicacionesScreen());
 
-            // ⭐ EMPLEADOR - BILLETERA
+            // 🔹 Billetera empleador
             case '/miBilleteraEmpleador':
-              return MaterialPageRoute(
-                  builder: (_) => MiBilleteraEmpleadorScreen());
+              return MaterialPageRoute(builder: (_) => const MiBilleteraEmpleadorScreen());
 
-            // ⭐ EMPLEADOR - HISTORIAL
+            // 🔹 Historial de transacciones
             case '/historialTransacciones':
-              return MaterialPageRoute(
-                  builder: (_) => HistorialTransaccionesScreen());
+              return MaterialPageRoute(builder: (_) => const HistorialTransaccionesScreen());
 
-            // ⭐ SIMULACIÓN PAYPAL
+            // 🔹 Pago PayPal (simulado)
             case '/pagoPaypal':
-              return MaterialPageRoute(builder: (_) => PagoPayPalScreen());
+              return MaterialPageRoute(builder: (_) => const PagoPayPalScreen());
+
+            // ⭐ 🔥 NUEVA PANTALLA UNIFICADA DE NOTIFICACIONES
+            case '/notificaciones':
+              return MaterialPageRoute(builder: (_) => const NotificacionesScreen());
+
+            // ⭐ 🔥 Pantalla de detalle de notificación
+            case '/notificacionDetalle':
+              return MaterialPageRoute(
+                builder: (_) => NotificacionDetalleScreen(
+                  notificacion: args['notificacion'],
+                ),
+              );
 
             default:
-              return MaterialPageRoute(builder: (_) => SeleccionScreen());
+              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
           }
         },
       ),
