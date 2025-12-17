@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class NotificacionDetalleScreen extends StatelessWidget {
   final Map<String, dynamic> notificacion;
@@ -8,7 +9,9 @@ class NotificacionDetalleScreen extends StatelessWidget {
     required this.notificacion,
   });
 
-  /// Extrae el título del trabajo desde el mensaje si no viene el objeto trabajo
+  // ======================================================
+  // 🔧 OBTENER TÍTULO DEL TRABAJO O CONTEXTO
+  // ======================================================
   String _obtenerTituloTrabajo(Map<String, dynamic> notificacion) {
     final trabajo = notificacion["trabajo"];
 
@@ -16,28 +19,37 @@ class NotificacionDetalleScreen extends StatelessWidget {
       return trabajo["titulo"];
     }
 
-    final mensaje = notificacion["mensaje"];
-    if (mensaje != null) {
-      final regex = RegExp(r'"([^"]+)"');
-      final match = regex.firstMatch(mensaje);
-      if (match != null) {
-        return match.group(1)!;
-      }
+    // 🔥 USAR EL TÍTULO DE LA NOTIFICACIÓN COMO CONTEXTO
+    if (notificacion["titulo"] != null) {
+      return notificacion["titulo"];
     }
 
     return "Trabajo no especificado";
   }
 
+  // ======================================================
+  // 📅 FORMATEAR FECHA
+  // ======================================================
+  String _formatearFecha(String? fechaIso) {
+    if (fechaIso == null) return "Fecha no disponible";
+
+    final fecha = DateTime.tryParse(fechaIso);
+    if (fecha == null) return "Fecha no disponible";
+
+    return DateFormat('dd/MM/yyyy HH:mm').format(fecha);
+  }
+
   @override
   Widget build(BuildContext context) {
-    // 🔎 DEBUG REAL (si algo falla, aquí lo ves)
     debugPrint("📩 NOTIFICACIÓN DETALLE:");
     debugPrint(notificacion.toString());
 
     final usuario = notificacion["usuarioNotificacion"] ?? {};
     final nombreUsuario = usuario["nombre"] ?? "Usuario desconocido";
-    final descripcion = notificacion["mensaje"] ?? "Sin descripción";
+
+    final mensaje = notificacion["mensaje"] ?? "Sin mensaje";
     final tituloTrabajo = _obtenerTituloTrabajo(notificacion);
+    final fecha = _formatearFecha(notificacion["createdAt"]);
 
     return Scaffold(
       appBar: AppBar(
@@ -49,14 +61,14 @@ class NotificacionDetalleScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Avatar
+            // ================= AVATAR =================
             Center(
               child: CircleAvatar(
                 radius: 40,
                 backgroundColor: Colors.deepPurple.shade300,
                 child: const Icon(
-                  Icons.person,
-                  size: 45,
+                  Icons.notifications,
+                  size: 42,
                   color: Colors.white,
                 ),
               ),
@@ -64,7 +76,7 @@ class NotificacionDetalleScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Usuario
+            // ================= USUARIO =================
             Text(
               nombreUsuario,
               style: const TextStyle(
@@ -73,11 +85,22 @@ class NotificacionDetalleScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 14),
+            const SizedBox(height: 8),
 
-            // Trabajo relacionado
+            // ================= FECHA =================
             Text(
-              "Trabajo relacionado:",
+              fecha,
+              style: const TextStyle(
+                fontSize: 13,
+                color: Colors.grey,
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ================= CONTEXTO =================
+            Text(
+              "Contexto:",
               style: TextStyle(
                 fontSize: 16,
                 color: Colors.deepPurple.shade700,
@@ -87,12 +110,15 @@ class NotificacionDetalleScreen extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               tituloTrabajo,
-              style: const TextStyle(fontSize: 16),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
             ),
 
-            const SizedBox(height: 22),
+            const SizedBox(height: 24),
 
-            // Mensaje
+            // ================= MENSAJE =================
             Text(
               "Mensaje:",
               style: TextStyle(
@@ -103,27 +129,27 @@ class NotificacionDetalleScreen extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              descripcion,
+              mensaje,
               style: const TextStyle(
                 fontSize: 15,
-                height: 1.4,
+                height: 1.5,
               ),
             ),
 
             const Spacer(),
 
-            // Botón volver
+            // ================= VOLVER =================
             Center(
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepPurple,
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 25,
-                    vertical: 12,
+                    horizontal: 28,
+                    vertical: 14,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
                 icon: const Icon(Icons.arrow_back, color: Colors.white),

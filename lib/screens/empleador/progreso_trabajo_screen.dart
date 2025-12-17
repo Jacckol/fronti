@@ -2,236 +2,256 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-// EMULADOR → 10.0.2.2
-// CELULAR REAL → http://192.168.100.22:4000
-const String baseUrl = "http://10.0.2.2:4000";
+// 👉 IMPORTA TU PANTALLA DE PAGO
+import 'pago_paypal_screen.dart';
+
+const String baseUrl = "http://10.0.2.2:4000/api";
 
 class ProgresoTrabajoScreen extends StatefulWidget {
   final int trabajoId;
-  final int postulacionId;
-  final String tituloTrabajo;
   final String nombreTrabajador;
-  final String correoTrabajador;
+  final String tituloTrabajo;
+  final String rol; // EMPLEADOR | TRABAJADOR
 
   const ProgresoTrabajoScreen({
     super.key,
     required this.trabajoId,
-    required this.postulacionId,
-    required this.tituloTrabajo,
     required this.nombreTrabajador,
-    required this.correoTrabajador,
+    required this.tituloTrabajo,
+    required this.rol,
   });
 
   @override
-  State<ProgresoTrabajoScreen> createState() => _ProgresoTrabajoScreenState();
+  State<ProgresoTrabajoScreen> createState() =>
+      _ProgresoTrabajoScreenState();
 }
 
 class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
-  String estadoTrabajo = "en_progreso";
   bool loading = false;
+  String estadoTrabajo = "activo";
 
-  // ============================
-  // MARCAR TRABAJO FINALIZADO
-  // ============================
+  // ======================================================
+  // 🔄 CARGAR ESTADO REAL
+  // ======================================================
+  Future<void> cargarEstadoTrabajo() async {
+    final url = Uri.parse("$baseUrl/trabajos/${widget.trabajoId}");
+
+    try {
+      final response = await http.get(url);
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() => estadoTrabajo = data["estado"]);
+      }
+    } catch (_) {}
+  }
+
+  // ======================================================
+  // 🔥 FINALIZAR TRABAJO + IR A PAGO
+  // ======================================================
   Future<void> finalizarTrabajo() async {
     setState(() => loading = true);
 
+    final url = Uri.parse(
+      "$baseUrl/trabajos/${widget.trabajoId}/finalizar-simple",
+    );
+
     try {
-      final url = Uri.parse(
-        "$baseUrl/api/trabajos/${widget.trabajoId}/finalizar",
-      );
+      final response = await http.put(url);
+      setState(() => loading = false);
 
-      final resp = await http.patch(url);
+      if (response.statusCode == 200) {
+        setState(() => estadoTrabajo = "finalizado");
 
-      if (resp.statusCode == 200) {
-        setState(() {
-          estadoTrabajo = "finalizado";
-        });
-
+        // 🔔 MENSAJE CLARO
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Trabajo finalizado correctamente")),
+          const SnackBar(
+            content: Text(
+              "✅ Trabajo finalizado. Debes realizar el pago.",
+            ),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+
+        // ⏳ PEQUEÑA PAUSA PARA QUE SE VEA EL MENSAJE
+        await Future.delayed(const Duration(milliseconds: 900));
+
+        // 👉 IR A PANTALLA DE PAGO
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const PagoPayPalScreen(),
+          ),
         );
       } else {
+        final body = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${resp.body}")),
+          SnackBar(
+            content: Text(body["error"] ?? "Error al finalizar"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
-    } catch (e) {
+    } catch (_) {
+      setState(() => loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e")),
-      );
-    }
-
-    setState(() => loading = false);
-  }
-
-  // ============================
-  // PAGO EN EFECTIVO
-  // ============================
-  Future<void> pagoEfectivo() async {
-    try {
-      final url = Uri.parse("$baseUrl/api/pagos/efectivo");
-
-      await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "trabajoId": widget.trabajoId,
-          "postulacionId": widget.postulacionId,
-        }),
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Pago en efectivo registrado")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e")),
+        const SnackBar(
+          content: Text("❌ No se pudo conectar al servidor"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
-  // ============================
-  // PAGO POR TRANSACCIÓN
-  // ============================
-  Future<void> pagoTransaccion() async {
-    try {
-      final url = Uri.parse("$baseUrl/api/pagos/transaccion");
+  @override
+  void initState() {
+    super.initState();
+    cargarEstadoTrabajo();
+  }
 
-      await http.post(
-        url,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "trabajoId": widget.trabajoId,
-          "postulacionId": widget.postulacionId,
-        }),
-      );
+  // ======================================================
+  // 🎨 CHIP DE ESTADO
+  // ======================================================
+  Widget _estadoChip() {
+    final isFinalizado = estadoTrabajo == "finalizado";
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Transacción realizada con éxito")),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e")),
-      );
-    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: isFinalizado ? Colors.green : Colors.orange,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        isFinalizado ? "FINALIZADO" : "EN PROGRESO",
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.bold,
+          fontSize: 12,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool finalizado = estadoTrabajo == "finalizado";
+    final bool esEmpleador = widget.rol == "EMPLEADOR";
 
     return Scaffold(
-      backgroundColor: const Color(0xffF3F0FF),
+      backgroundColor: const Color(0xFFF3F0FF),
+
+      // =======================
+      // APPBAR
+      // =======================
       appBar: AppBar(
-        backgroundColor: const Color(0xff6A4CE8),
-        title: const Text("Progreso del trabajo"),
+        backgroundColor: const Color(0xFF6A4CE8),
+        title: const Text("Progreso del Trabajo"),
+        centerTitle: true,
       ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : Padding(
+
+      // =======================
+      // BODY
+      // =======================
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // =======================
+            // CARD DEL TRABAJO
+            // =======================
+            Container(
               padding: const EdgeInsets.all(16),
-              child: Column(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.06),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ============================
-                  // INFO TRABAJO
-                  // ============================
-                  Text(
-                    widget.tituloTrabajo,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                  CircleAvatar(
+                    radius: 26,
+                    backgroundColor: Colors.deepPurple.shade100,
+                    child: const Icon(
+                      Icons.work_outline,
+                      color: Colors.deepPurple,
+                      size: 28,
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-
-                  // ============================
-                  // INFO TRABAJADOR
-                  // ============================
-                  Card(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xff6A4CE8),
-                        child: Icon(Icons.person, color: Colors.white),
-                      ),
-                      title: Text(widget.nombreTrabajador),
-                      subtitle: Text(widget.correoTrabajador),
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // ============================
-                  // ESTADO
-                  // ============================
-                  Row(
-                    children: [
-                      const Text(
-                        "Estado:",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.tituloTrabajo,
+                          style: const TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 10),
-                      Chip(
-                        label: Text(
-                          finalizado ? "FINALIZADO" : "EN PROGRESO",
-                          style: const TextStyle(color: Colors.white),
+                        const SizedBox(height: 4),
+                        Text(
+                          "Trabajador: ${widget.nombreTrabajador}",
+                          style: const TextStyle(color: Colors.black54),
                         ),
-                        backgroundColor:
-                            finalizado ? Colors.green : Colors.orange,
-                      ),
-                    ],
-                  ),
-
-                  const Spacer(),
-
-                  // ============================
-                  // BOTONES
-                  // ============================
-                  ElevatedButton.icon(
-                    onPressed: finalizado ? null : finalizarTrabajo,
-                    icon: const Icon(Icons.check_circle),
-                    label: const Text("Trabajo finalizado"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ElevatedButton.icon(
-                    onPressed: finalizado ? pagoEfectivo : null,
-                    icon: const Icon(Icons.money),
-                    label: const Text("Pago en efectivo"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  ElevatedButton.icon(
-                    onPressed: finalizado ? pagoTransaccion : null,
-                    icon: const Icon(Icons.account_balance_wallet),
-                    label: const Text("Transacción (billetera)"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple,
-                      minimumSize: const Size(double.infinity, 50),
+                        const SizedBox(height: 10),
+                        _estadoChip(),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
+
+            const Spacer(),
+
+            // =======================
+            // BOTÓN INFERIOR
+            // =======================
+            if (esEmpleador && estadoTrabajo != "finalizado")
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: loading ? null : finalizarTrabajo,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: loading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "Finalizar trabajo",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+            if (estadoTrabajo == "finalizado")
+              const Padding(
+                padding: EdgeInsets.only(top: 12),
+                child: Text(
+                  "Este trabajo ya fue finalizado ✅",
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
-                                                                                                                                                                   

@@ -2,8 +2,10 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+// 🔥 IMPORT DE PROGRESO (NO BORRA NADA)
+import 'progreso_trabajo_screen.dart';
+
 // EMULADOR → 10.0.2.2
-// CELULAR REAL → cambia a: http://192.168.100.22:4000
 const String baseUrl = "http://10.0.2.2:4000";
 
 class VerPostulacionesScreen extends StatefulWidget {
@@ -17,7 +19,8 @@ class VerPostulacionesScreen extends StatefulWidget {
   });
 
   @override
-  State<VerPostulacionesScreen> createState() => _VerPostulacionesScreenState();
+  State<VerPostulacionesScreen> createState() =>
+      _VerPostulacionesScreenState();
 }
 
 class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
@@ -38,25 +41,50 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
         postulaciones = data["postulaciones"] ?? [];
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${resp.body}")),
-        );
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e")),
-      );
-    }
+    } catch (_) {}
 
     if (!mounted) return;
-    setState(() {
-      loading = false;
-    });
+    setState(() => loading = false);
+  }
+
+  // =====================================================
+  // 🔥 ACEPTAR Y ENTRAR A PROGRESO
+  // =====================================================
+  Future<void> aceptarYIrAProgreso(Map p) async {
+    try {
+      final url = Uri.parse(
+        "$baseUrl/api/postulaciones/${p["id"]}/estado",
+      );
+
+      final resp = await http.patch(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"estado": "aceptado"}),
+      );
+
+      if (resp.statusCode == 200) {
+        final postulante = p["postulante"] ?? {};
+        await cargarPostulaciones();
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProgresoTrabajoScreen(
+              trabajoId: widget.trabajoId,
+              tituloTrabajo: widget.tituloTrabajo,
+              nombreTrabajador:
+                  postulante["nombre"] ?? "Trabajador",
+              rol: "EMPLEADOR",
+            ),
+          ),
+        );
+      }
+    } catch (_) {}
   }
 
   // ============================
-  // CAMBIAR ESTADO POSTULACIÓN
+  // RECHAZAR POSTULACIÓN
   // ============================
   Future<void> cambiarEstado(int id, String estado) async {
     try {
@@ -64,33 +92,47 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
         "$baseUrl/api/postulaciones/$id/estado",
       );
 
-      final resp = await http.patch(
+      await http.patch(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"estado": estado}),
       );
 
-      if (resp.statusCode == 200) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Postulación marcada como $estado")),
-        );
-        cargarPostulaciones();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Error: ${resp.body}")),
-        );
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error de conexión: $e")),
-      );
-    }
+      cargarPostulaciones();
+    } catch (_) {}
   }
 
   @override
   void initState() {
     super.initState();
     cargarPostulaciones();
+  }
+
+  // =====================================================
+  // 🎨 CHIP DE ESTADO MEJORADO
+  // =====================================================
+  Widget _estadoChip(String estado) {
+    Color color = estado == "aceptado"
+        ? Colors.green
+        : estado == "rechazado"
+            ? Colors.red
+            : Colors.orange;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Text(
+        estado.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
   }
 
   @override
@@ -104,38 +146,51 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
     return Scaffold(
       backgroundColor: const Color(0xffF3F0FF),
       appBar: AppBar(
+        elevation: 0,
         backgroundColor: const Color(0xff6A4CE8),
-        title: const Text("Postulaciones"),
+        centerTitle: true,
+        title: const Text(
+          "Postulaciones",
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // CABECERA
-                Padding(
-                  padding: const EdgeInsets.all(16),
+                // ================= CABECERA =================
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(22),
+                  decoration: const BoxDecoration(
+                    color: Color(0xff6A4CE8),
+                    borderRadius: BorderRadius.vertical(
+                      bottom: Radius.circular(30),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         widget.tituloTrabajo,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
+                          color: Colors.white,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       const Text(
-                        "Revisa las personas interesadas en este trabajo.",
-                        style: TextStyle(color: Colors.grey),
+                        "Gestiona las postulaciones recibidas",
+                        style: TextStyle(color: Colors.white70),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
                       Row(
                         children: [
                           _statCard(
                             "Postulaciones",
                             total.toString(),
-                            Icons.group_outlined,
+                            Icons.group,
                             Colors.blue,
                           ),
                           const SizedBox(width: 10),
@@ -149,7 +204,7 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                           _statCard(
                             "Rechazadas",
                             rechazadas.toString(),
-                            Icons.cancel_outlined,
+                            Icons.cancel,
                             Colors.red,
                           ),
                         ],
@@ -158,72 +213,64 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
+                // ================= LISTA =================
                 Expanded(
                   child: postulaciones.isEmpty
                       ? const Center(
-                          child: Text(
-                            "Aún no hay postulaciones para este trabajo",
-                          ),
+                          child: Text("Aún no hay postulaciones"),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 8,
-                          ),
+                          padding: const EdgeInsets.all(16),
                           itemCount: postulaciones.length,
                           itemBuilder: (_, i) {
                             final p = postulaciones[i];
                             final postulante = p["postulante"] ?? {};
-                            final nombre = postulante["nombre"] ?? "Sin nombre";
-                            final email = postulante["email"] ?? "Sin email";
+                            final nombre =
+                                postulante["nombre"] ?? "Sin nombre";
+                            final email =
+                                postulante["email"] ?? "Sin email";
                             final mensaje =
                                 (p["mensaje"] ?? "").toString().trim().isEmpty
                                     ? "Sin mensaje"
                                     : p["mensaje"];
-
-                            Color colorEstado;
-                            switch (p["estado"]) {
-                              case "aceptado":
-                                colorEstado = Colors.green;
-                                break;
-                              case "rechazado":
-                                colorEstado = Colors.red;
-                                break;
-                              default:
-                                colorEstado = Colors.orange;
-                            }
+                            final estado = p["estado"] ?? "pendiente";
 
                             return Container(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              padding: const EdgeInsets.all(14),
+                              margin: const EdgeInsets.only(bottom: 16),
+                              padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
+                                borderRadius: BorderRadius.circular(20),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withOpacity(0.05),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 2),
+                                    color: Colors.black.withOpacity(0.07),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 6),
                                   ),
                                 ],
                               ),
                               child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     children: [
                                       CircleAvatar(
-                                        radius: 22,
+                                        radius: 26,
                                         backgroundColor:
                                             Colors.deepPurple.shade100,
-                                        child: const Icon(
-                                          Icons.person,
-                                          color: Colors.deepPurple,
+                                        child: Text(
+                                          nombre[0].toUpperCase(),
+                                          style: const TextStyle(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.deepPurple,
+                                          ),
                                         ),
                                       ),
-                                      const SizedBox(width: 10),
+                                      const SizedBox(width: 12),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment:
@@ -233,69 +280,114 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                                               nombre,
                                               style: const TextStyle(
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.w600,
+                                                fontWeight:
+                                                    FontWeight.w600,
                                               ),
                                             ),
                                             Text(
                                               email,
                                               style: const TextStyle(
+                                                fontSize: 13,
                                                 color: Colors.grey,
                                               ),
                                             ),
                                           ],
                                         ),
                                       ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 10,
-                                          vertical: 3,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: colorEstado.withOpacity(0.1),
-                                          borderRadius:
-                                              BorderRadius.circular(20),
-                                        ),
-                                        child: Text(
-                                          (p["estado"] ?? "pendiente")
-                                              .toString()
-                                              .toUpperCase(),
-                                          style: TextStyle(
-                                            fontSize: 11,
-                                            color: colorEstado,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
+                                      _estadoChip(estado),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
+
+                                  const SizedBox(height: 14),
+
                                   Text(
                                     mensaje,
                                     style: const TextStyle(fontSize: 14),
                                   ),
-                                  const SizedBox(height: 10),
+
+                                  const SizedBox(height: 18),
+
                                   Row(
-                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.end,
                                     children: [
-                                      TextButton(
-                                        onPressed: () => cambiarEstado(
-                                          p["id"],
-                                          "aceptado",
+                                      if (estado == "pendiente") ...[
+                                        ElevatedButton(
+                                          onPressed: () =>
+                                              aceptarYIrAProgreso(p),
+                                          style:
+                                              ElevatedButton.styleFrom(
+                                            backgroundColor:
+                                                Colors.green,
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                              horizontal: 20,
+                                              vertical: 12,
+                                            ),
+                                            shape:
+                                                RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      14),
+                                            ),
+                                          ),
+                                          child:
+                                              const Text("Aceptar"),
                                         ),
-                                        child: const Text("Aceptar"),
-                                      ),
-                                      TextButton(
-                                        onPressed: () => cambiarEstado(
-                                          p["id"],
-                                          "rechazado",
+                                        const SizedBox(width: 8),
+                                        OutlinedButton(
+                                          onPressed: () =>
+                                              cambiarEstado(
+                                            p["id"],
+                                            "rechazado",
+                                          ),
+                                          style:
+                                              OutlinedButton.styleFrom(
+                                            foregroundColor:
+                                                Colors.red,
+                                            padding:
+                                                const EdgeInsets.symmetric(
+                                              horizontal: 18,
+                                              vertical: 12,
+                                            ),
+                                            shape:
+                                                RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                      14),
+                                            ),
+                                          ),
+                                          child:
+                                              const Text("Rechazar"),
                                         ),
-                                        child: const Text(
-                                          "Rechazar",
-                                          style: TextStyle(color: Colors.red),
+                                      ],
+                                      if (estado == "aceptado")
+                                        TextButton.icon(
+                                          onPressed: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) =>
+                                                    ProgresoTrabajoScreen(
+                                                  trabajoId:
+                                                      widget.trabajoId,
+                                                  tituloTrabajo:
+                                                      widget
+                                                          .tituloTrabajo,
+                                                  nombreTrabajador:
+                                                      nombre,
+                                                  rol: "EMPLEADOR",
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                          icon: const Icon(
+                                              Icons.timeline),
+                                          label: const Text(
+                                              "Ver progreso"),
                                         ),
-                                      ),
                                     ],
-                                  )
+                                  ),
                                 ],
                               ),
                             );
@@ -307,6 +399,9 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
     );
   }
 
+  // ============================
+  // 📊 TARJETA DE ESTADÍSTICA
+  // ============================
   Widget _statCard(
     String label,
     String value,
@@ -315,26 +410,18 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
   ) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 5,
-              offset: const Offset(0, 2),
-            )
-          ],
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
           children: [
             CircleAvatar(
-              radius: 16,
               backgroundColor: color.withOpacity(0.15),
-              child: Icon(icon, color: color, size: 18),
+              child: Icon(icon, color: color),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

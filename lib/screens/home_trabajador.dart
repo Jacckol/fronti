@@ -14,14 +14,37 @@ import 'ofertas_screen.dart';
 import 'billetera_trabajador_screen.dart';
 import 'ofertas_trabajos_screen.dart';
 
-// Pantalla unificada de notificaciones
+// Notificaciones
 import '../screens/notificaciones/notificaciones_screen.dart';
 
 // Login
 import 'login_screen.dart';
 
-class HomeTrabajadorScreen extends StatelessWidget {
+class HomeTrabajadorScreen extends StatefulWidget {
   const HomeTrabajadorScreen({super.key});
+
+  @override
+  State<HomeTrabajadorScreen> createState() => _HomeTrabajadorScreenState();
+}
+
+class _HomeTrabajadorScreenState extends State<HomeTrabajadorScreen> {
+
+  // ======================================================
+  // 🔥 CARGAR NOTIFICACIONES AL ENTRAR AL HOME
+  // ======================================================
+  @override
+  void initState() {
+    super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      final notiProv = context.read<NotificacionesProvider>();
+
+      if (auth.userId != null) {
+        notiProv.cargarNotificaciones(auth.userId!);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,7 +67,10 @@ class HomeTrabajadorScreen extends StatelessWidget {
           ),
         ),
         actions: [
-          // 🔵 ÍCONO DE NOTIFICACIONES UNIFICADO
+
+          // ======================================================
+          // 🔔 CAMPANA DE NOTIFICACIONES (YA FUNCIONA)
+          // ======================================================
           Consumer<NotificacionesProvider>(
             builder: (_, noti, __) {
               return Stack(
@@ -54,17 +80,22 @@ class HomeTrabajadorScreen extends StatelessWidget {
                       Icons.notifications,
                       color: Color(0xFF8B5CF6),
                     ),
-                    onPressed: () {
-                      Navigator.push(
+                    onPressed: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const NotificacionesScreen(),
                         ),
                       );
+
+                      // 🔄 RECARGAR AL VOLVER
+                      if (auth.userId != null) {
+                        noti.cargarNotificaciones(auth.userId!);
+                      }
                     },
                   ),
 
-                  // 🔴 Badge de notificaciones no leídas
+                  // 🔴 BADGE
                   if (noti.unreadCount > 0)
                     Positioned(
                       right: 8,
@@ -81,6 +112,7 @@ class HomeTrabajadorScreen extends StatelessWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -90,7 +122,9 @@ class HomeTrabajadorScreen extends StatelessWidget {
             },
           ),
 
-          // 🔴 CERRAR SESIÓN
+          // ======================================================
+          // 🚪 CERRAR SESIÓN
+          // ======================================================
           TextButton.icon(
             onPressed: () async {
               final confirmar = await showDialog<bool>(
@@ -156,7 +190,8 @@ class HomeTrabajadorScreen extends StatelessWidget {
               Expanded(
                 child: GridView.builder(
                   padding: const EdgeInsets.only(top: 10),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  gridDelegate:
+                      const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
@@ -165,106 +200,97 @@ class HomeTrabajadorScreen extends StatelessWidget {
                   itemCount: 6,
                   itemBuilder: (context, index) {
                     switch (index) {
-
-                      case 0: // BUSCAR TRABAJOS
+                      case 0:
                         return _menuCard(
                           icon: Icons.search,
                           color: Colors.blue,
                           title: 'Buscar\nOfertas',
                           subtitle: 'Trabajos disponibles',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const OfertasTrabajosScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const OfertasTrabajosScreen(),
+                            ),
+                          ),
                         );
 
-                      case 1: // PERFIL
+                      case 1:
                         return _menuCard(
                           icon: Icons.person,
                           color: Colors.purple,
                           title: 'Mi\nPerfil',
                           subtitle: 'Editar información',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => PerfilTrabajadorScreen(
-                                  userId: auth.userId ?? 0,
-                                  nombre: userName,
-                                  telefono: "No registrado",
-                                ),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PerfilTrabajadorScreen(
+                                userId: auth.userId ?? 0,
+                                nombre: userName,
+                                telefono: "No registrado",
                               ),
-                            );
-                          },
+                            ),
+                          ),
                         );
 
-                      case 2: // POSTULACIONES
+                      case 2:
                         return _menuCard(
                           icon: Icons.note_alt_outlined,
                           color: Colors.green,
                           title: 'Mis\nPostulaciones',
                           subtitle: 'Revisar solicitudes',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const MisPostulacionesScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const MisPostulacionesScreen(),
+                            ),
+                          ),
                         );
 
-                      case 3: // PUBLICAR SERVICIO
+                      case 3:
                         return _menuCard(
                           icon: Icons.add_circle_outline,
                           color: Colors.orange,
                           title: 'Publicar\nServicio',
                           subtitle: 'Ofrece tus habilidades',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PublicarServicioScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PublicarServicioScreen(),
+                            ),
+                          ),
                         );
 
-                      case 4: // BILLETERA
+                      case 4:
                         return _menuCard(
                           icon: Icons.account_balance_wallet,
                           color: Colors.teal,
                           title: 'Mi\nBilletera',
                           subtitle: 'Pagos e ingresos',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const BilleteraTrabajadorScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const BilleteraTrabajadorScreen(),
+                            ),
+                          ),
                         );
 
-                      case 5: // MIS PUBLICACIONES
+                      case 5:
                         return _menuCard(
                           icon: Icons.list_alt,
                           color: Colors.indigo,
                           title: 'Mis\nPublicaciones',
                           subtitle: 'Ver y gestionar',
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => const PublicacionesScreen(),
-                              ),
-                            );
-                          },
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  const PublicacionesScreen(),
+                            ),
+                          ),
                         );
 
                       default:
@@ -280,6 +306,9 @@ class HomeTrabajadorScreen extends StatelessWidget {
     );
   }
 
+  // ======================================================
+  // TARJETA MENÚ
+  // ======================================================
   Widget _menuCard({
     required IconData icon,
     required Color color,
@@ -315,7 +344,6 @@ class HomeTrabajadorScreen extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 28),
             ),
-            const SizedBox(height: 6),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -324,7 +352,6 @@ class HomeTrabajadorScreen extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 4),
             Flexible(
               child: Text(
                 subtitle,

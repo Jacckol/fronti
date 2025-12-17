@@ -8,13 +8,32 @@ class MisPostulacionesScreen extends StatefulWidget {
   const MisPostulacionesScreen({super.key});
 
   @override
-  State<MisPostulacionesScreen> createState() => _MisPostulacionesScreenState();
+  State<MisPostulacionesScreen> createState() =>
+      _MisPostulacionesScreenState();
 }
 
 enum FiltroPostulacion { todas, pendientes, aceptadas, rechazadas }
 
 class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   FiltroPostulacion _filtro = FiltroPostulacion.todas;
+
+  // ======================================================
+  // 🔥 CLAVE: RECARGAR POSTULACIONES DESDE BACKEND
+  // ======================================================
+  @override
+  void initState() {
+    super.initState();
+
+    Future.microtask(() {
+      final prov =
+          Provider.of<PostulacionesProvider>(context, listen: false);
+
+      // 🔴 CAMBIA ESTE ID POR EL USUARIO LOGUEADO REAL
+      const int userId = 1;
+
+      prov.cargarDesdeBackend(userId);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +66,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
           const SizedBox(height: 16),
 
           // -----------------------------------------------------
-          // CONTADORES SUPERIORES
+          // CONTADORES
           // -----------------------------------------------------
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -97,7 +116,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
           const SizedBox(height: 8),
 
           // -----------------------------------------------------
-          // LISTA DE POSTULACIONES
+          // LISTA
           // -----------------------------------------------------
           Expanded(
             child: lista.isEmpty
@@ -121,9 +140,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
-  // -----------------------------------------------------
-  // TARJETA CONTADOR
-  // -----------------------------------------------------
+  // ======================================================
+  // CONTADOR
+  // ======================================================
   Widget _contadorCard({
     required String label,
     required int cantidad,
@@ -156,9 +175,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
-  // -----------------------------------------------------
-  // CHIP DE FILTRO
-  // -----------------------------------------------------
+  // ======================================================
+  // FILTRO CHIP
+  // ======================================================
   Widget _filtroChip(String texto, FiltroPostulacion value) {
     final bool activo = _filtro == value;
     return Expanded(
@@ -186,9 +205,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     );
   }
 
-  // -----------------------------------------------------
+  // ======================================================
   // TARJETA POSTULACIÓN
-  // -----------------------------------------------------
+  // ======================================================
   Widget _cardPostulacion(Postulacion p) {
     Color etiquetaColor;
     Color etiquetaTexto;
@@ -200,13 +219,11 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         etiquetaTexto = const Color(0xFF166534);
         etiquetaTextoStr = 'Aceptada';
         break;
-
       case EstadoPostulacion.rechazada:
         etiquetaColor = const Color(0xFFFEE2E2);
         etiquetaTexto = const Color(0xFFB91C1C);
         etiquetaTextoStr = 'Rechazada';
         break;
-
       default:
         etiquetaColor = const Color(0xFFFFF7E0);
         etiquetaTexto = const Color(0xFF92400E);
@@ -231,9 +248,6 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // -----------------------------------------------------
-          // TÍTULO + ESTADO
-          // -----------------------------------------------------
           Row(
             children: [
               Expanded(
@@ -268,9 +282,6 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 12),
 
-          // -----------------------------------------------------
-          // CATEGORÍA + EMPLEADOR
-          // -----------------------------------------------------
           Row(
             children: [
               Container(
@@ -300,13 +311,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 12),
 
-          // -----------------------------------------------------
-          // BOTONES
-          // -----------------------------------------------------
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // VER DETALLES
               TextButton(
                 onPressed: () {
                   Navigator.push(
@@ -322,10 +329,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
                   style: TextStyle(fontSize: 12),
                 ),
               ),
-
               const SizedBox(width: 12),
-
-              // ELIMINAR LOCALMENTE
               TextButton(
                 onPressed: () {
                   context
@@ -341,7 +345,8 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
                 },
                 child: const Text(
                   'Eliminar',
-                  style: TextStyle(fontSize: 12, color: Colors.red),
+                  style:
+                      TextStyle(fontSize: 12, color: Colors.red),
                 ),
               ),
             ],

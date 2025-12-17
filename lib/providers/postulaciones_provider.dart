@@ -2,8 +2,14 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+// ======================================================
+// ENUM ESTADOS
+// ======================================================
 enum EstadoPostulacion { pendiente, aceptada, rechazada }
 
+// ======================================================
+// MODELO POSTULACIÓN
+// ======================================================
 class Postulacion {
   final int id;
   final int trabajoId;
@@ -43,7 +49,8 @@ class Postulacion {
       categoria: trabajo['categoria'] ?? "Sin categoría",
       empleador: postulante['nombre'] ?? "Desconocido",
       ubicacion: trabajo['ubicacion'] ?? "",
-      presupuesto: double.tryParse((trabajo['salario'] ?? "0").toString()) ?? 0,
+      presupuesto:
+          double.tryParse((trabajo['salario'] ?? "0").toString()) ?? 0,
       duracion: trabajo['duracion'] ?? "",
       mensaje: json['mensaje'] ?? "",
       fecha: DateTime.parse(json['createdAt']),
@@ -63,6 +70,9 @@ class Postulacion {
   }
 }
 
+// ======================================================
+// PROVIDER POSTULACIONES
+// ======================================================
 class PostulacionesProvider extends ChangeNotifier {
   final String baseUrl = "http://10.0.2.2:4000";
 
@@ -71,7 +81,6 @@ class PostulacionesProvider extends ChangeNotifier {
   // ====================================
   // GETTERS
   // ====================================
-
   List<Postulacion> get todas => _postulaciones;
 
   List<Postulacion> get pendientes =>
@@ -88,9 +97,8 @@ class PostulacionesProvider extends ChangeNotifier {
   int get totalRechazadas => rechazadas.length;
 
   // ====================================
-  // CARGAR POSTULACIONES DEL BACKEND
+  // CARGAR POSTULACIONES DESDE BACKEND
   // ====================================
-
   Future<void> cargarPostulaciones(int userId) async {
     try {
       final url = Uri.parse("$baseUrl/api/postulaciones/usuario/$userId");
@@ -115,16 +123,24 @@ class PostulacionesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ====================================
-  // CREAR POSTULACIÓN COMPLETA
-  // ====================================
+  // ======================================================
+  // 🔥 ALIAS (SOLUCIÓN DEFINITIVA A TU ERROR)
+  // ======================================================
+  // 👉 Tus pantallas llaman a `cargarDesdeBackend`
+  // 👉 Aquí simplemente redirigimos al método real
+  Future<void> cargarDesdeBackend(int userId) async {
+    await cargarPostulaciones(userId);
+  }
 
+  // ====================================
+  // CREAR POSTULACIÓN
+  // ====================================
   Future<bool> crearPostulacion({
     required int trabajoId,
     required int userId,
     required String mensaje,
 
-    // 🔥 OBLIGATORIOS POR TU UI
+    // 🔥 CAMPOS PARA UI
     required String titulo,
     required String categoria,
     required String empleador,
@@ -145,10 +161,7 @@ class PostulacionesProvider extends ChangeNotifier {
         }),
       );
 
-      print("🟪 RESP crearPostulacion: ${resp.statusCode} | ${resp.body}");
-
       if (resp.statusCode == 201) {
-        /// GUARDAR LOCALMENTE PARA TU UI
         final nueva = Postulacion(
           id: DateTime.now().millisecondsSinceEpoch,
           trabajoId: trabajoId,
@@ -164,7 +177,6 @@ class PostulacionesProvider extends ChangeNotifier {
 
         _postulaciones.insert(0, nueva);
         notifyListeners();
-
         return true;
       }
     } catch (e) {
@@ -177,7 +189,6 @@ class PostulacionesProvider extends ChangeNotifier {
   // ====================================
   // ACTUALIZAR ESTADO LOCAL
   // ====================================
-
   void actualizarEstadoLocal(int id, EstadoPostulacion nuevoEstado) {
     final index = _postulaciones.indexWhere((p) => p.id == id);
     if (index != -1) {
@@ -187,9 +198,8 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   // ====================================
-  // ELIMINAR POSTULACIÓN LOCAL
+  // ELIMINAR LOCALMENTE
   // ====================================
-
   void eliminarPostulacionLocal(int id) {
     _postulaciones.removeWhere((p) => p.id == id);
     notifyListeners();
@@ -198,7 +208,6 @@ class PostulacionesProvider extends ChangeNotifier {
   // ====================================
   // LIMPIAR TODO
   // ====================================
-
   void limpiar() {
     _postulaciones = [];
     notifyListeners();

@@ -38,9 +38,12 @@ import 'screens/publicaciones_screen.dart';
 import 'screens/ofertas_screen.dart';
 import 'screens/ofertas_trabajos_screen.dart';
 
-// 🔹 Notificaciones (UNIFICADA)
+// 🔹 Notificaciones
 import 'screens/notificaciones/notificaciones_screen.dart';
 import 'screens/notificaciones/notificacion_detalle_screen.dart';
+
+// 🔥 PROGRESO DEL TRABAJO (RUTA CORRECTA)
+import 'screens/empleador/progreso_trabajo_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -60,15 +63,11 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => MisServiciosProvider()),
         ChangeNotifierProvider(create: (_) => ServicioProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
-
-        // ⭐⭐⭐ Provider de notificaciones ⭐⭐⭐
         ChangeNotifierProvider(create: (_) => NotificacionesProvider()),
       ],
-
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'TodoServy',
-
         theme: ThemeData(
           primarySwatch: Colors.blue,
           scaffoldBackgroundColor: const Color(0xFFF3F5F7),
@@ -76,33 +75,33 @@ class MyApp extends StatelessWidget {
             border: OutlineInputBorder(),
           ),
         ),
-
         initialRoute: '/seleccion',
 
         // ==========================================================
-        // 🔥 Sistema completo de rutas
+        // 🔥 SISTEMA COMPLETO DE RUTAS
         // ==========================================================
         onGenerateRoute: (settings) {
           final args = settings.arguments as Map<String, dynamic>? ?? {};
           final rol = args['rol'];
 
           switch (settings.name) {
-
-            // 🔹 Selección de rol
             case '/seleccion':
-              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
-
-            // 🔹 Login
-            case '/login':
               return MaterialPageRoute(
-                builder: (_) => LoginScreen(rol: rol ?? 'trabajador'),
+                builder: (_) => const SeleccionScreen(),
               );
 
-            // 🔹 Registro
+            case '/login':
+              return MaterialPageRoute(
+                builder: (_) => LoginScreen(
+                  rol: rol ?? 'trabajador',
+                ),
+              );
+
             case '/register':
               if (rol == 'trabajador') {
                 return MaterialPageRoute(
-                  builder: (_) => const RegisterTrabajadorScreen(rol: 'trabajador'),
+                  builder: (_) =>
+                      const RegisterTrabajadorScreen(rol: 'trabajador'),
                 );
               }
               if (rol == 'empleador') {
@@ -110,17 +109,20 @@ class MyApp extends StatelessWidget {
                   builder: (_) => const RegisterEmployerScreen(),
                 );
               }
-              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
+              return MaterialPageRoute(
+                builder: (_) => const SeleccionScreen(),
+              );
 
-            // 🔹 Home Empleador
             case '/homeEmpleador':
-              return MaterialPageRoute(builder: (_) => const HomeEmpleadorScreen());
+              return MaterialPageRoute(
+                builder: (_) => const HomeEmpleadorScreen(),
+              );
 
-            // 🔹 Home Trabajador
             case '/homeTrabajador':
-              return MaterialPageRoute(builder: (_) => const HomeTrabajadorScreen());
+              return MaterialPageRoute(
+                builder: (_) => const HomeTrabajadorScreen(),
+              );
 
-            // 🔹 Perfil trabajador
             case '/perfilTrabajador':
               return MaterialPageRoute(
                 builder: (_) => PerfilTrabajadorScreen(
@@ -130,49 +132,61 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
-            // 🔹 Ofertas
             case '/ofertasServicios':
-              return MaterialPageRoute(builder: (_) => const OfertasScreen());
+              return MaterialPageRoute(
+                builder: (_) => const OfertasScreen(),
+              );
 
             case '/ofertasTrabajos':
-              return MaterialPageRoute(builder: (_) => const OfertasTrabajosScreen());
+              return MaterialPageRoute(
+                builder: (_) => const OfertasTrabajosScreen(),
+              );
 
-            // 🔹 Mis Postulaciones
             case '/misPostulaciones':
-              return MaterialPageRoute(builder: (_) => const MisPostulacionesScreen());
+              return MaterialPageRoute(
+                builder: (_) => const MisPostulacionesScreen(),
+              );
 
-            // 🔹 Publicar servicios
             case '/publicarServicio':
-              return MaterialPageRoute(builder: (_) => const PublicarServicioScreen());
+              return MaterialPageRoute(
+                builder: (_) => const PublicarServicioScreen(),
+              );
 
             case '/publicaciones':
-              return MaterialPageRoute(builder: (_) => const PublicacionesScreen());
+              return MaterialPageRoute(
+                builder: (_) => const PublicacionesScreen(),
+              );
 
-            // 🔹 Empleador – Publicar trabajo
             case '/publicarTrabajo':
-              return MaterialPageRoute(builder: (_) => const PublicarTrabajoScreen());
+              return MaterialPageRoute(
+                builder: (_) => const PublicarTrabajoScreen(),
+              );
 
-            // 🔹 Empleador – Mis publicaciones
             case '/misPublicaciones':
-              return MaterialPageRoute(builder: (_) => const MisPublicacionesScreen());
+              return MaterialPageRoute(
+                builder: (_) => const MisPublicacionesScreen(),
+              );
 
-            // 🔹 Billetera empleador
             case '/miBilleteraEmpleador':
-              return MaterialPageRoute(builder: (_) => const MiBilleteraEmpleadorScreen());
+              return MaterialPageRoute(
+                builder: (_) => const MiBilleteraEmpleadorScreen(),
+              );
 
-            // 🔹 Historial de transacciones
             case '/historialTransacciones':
-              return MaterialPageRoute(builder: (_) => const HistorialTransaccionesScreen());
+              return MaterialPageRoute(
+                builder: (_) => const HistorialTransaccionesScreen(),
+              );
 
-            // 🔹 Pago PayPal (simulado)
             case '/pagoPaypal':
-              return MaterialPageRoute(builder: (_) => const PagoPayPalScreen());
+              return MaterialPageRoute(
+                builder: (_) => const PagoPayPalScreen(),
+              );
 
-            // ⭐ 🔥 NUEVA PANTALLA UNIFICADA DE NOTIFICACIONES
             case '/notificaciones':
-              return MaterialPageRoute(builder: (_) => const NotificacionesScreen());
+              return MaterialPageRoute(
+                builder: (_) => const NotificacionesScreen(),
+              );
 
-            // ⭐ 🔥 Pantalla de detalle de notificación
             case '/notificacionDetalle':
               return MaterialPageRoute(
                 builder: (_) => NotificacionDetalleScreen(
@@ -180,8 +194,21 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
+            // 🔥 PROGRESO DEL TRABAJO
+            case '/progresoTrabajo':
+              return MaterialPageRoute(
+                builder: (_) => ProgresoTrabajoScreen(
+                  trabajoId: args['trabajoId'],
+                  nombreTrabajador: args['nombreTrabajador'],
+                  tituloTrabajo: args['tituloTrabajo'],
+                  rol: args['rol'],
+                ),
+              );
+
             default:
-              return MaterialPageRoute(builder: (_) => const SeleccionScreen());
+              return MaterialPageRoute(
+                builder: (_) => const SeleccionScreen(),
+              );
           }
         },
       ),

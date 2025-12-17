@@ -11,39 +11,30 @@ class NotificacionesScreen extends StatefulWidget {
 }
 
 class _NotificacionesScreenState extends State<NotificacionesScreen> {
+
+  // ======================================================
+  // 🔥 CARGAR NOTIFICACIONES AL ENTRAR
+  // ======================================================
   @override
   void initState() {
     super.initState();
 
-    final auth = context.read<AuthProvider>();
-    final notiProv = context.read<NotificacionesProvider>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      final notiProv = context.read<NotificacionesProvider>();
 
-    if (auth.userId != null) {
-      notiProv.cargarNotificaciones(auth.userId!);
-    }
+      if (auth.userId != null) {
+        notiProv.cargarNotificaciones(auth.userId!);
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final notiProv = context.watch<NotificacionesProvider>();
-    final auth = context.watch<AuthProvider>();
 
-    // ✅ USO CORRECTO DEL GETTER
-    final bool esEmpleador = auth.role == "empleador";
-
-    // ======================================================
-    // 🔹 FILTRAR NOTIFICACIONES SEGÚN ROL
-    // ======================================================
-    final notificacionesFiltradas = notiProv.notificaciones.where((noti) {
-      final titulo = noti["titulo"] ?? "";
-
-      if (esEmpleador) {
-        return titulo == "Nueva postulación recibida";
-      } else {
-        return titulo == "Postulación aceptada" ||
-               titulo == "Postulación rechazada";
-      }
-    }).toList();
+    // 🚨 NO SE FILTRA POR ROL
+    final notificaciones = notiProv.notificaciones;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F4F8),
@@ -52,23 +43,20 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
         centerTitle: true,
         elevation: 0,
       ),
-
-      body: notificacionesFiltradas.isEmpty
+      body: notificaciones.isEmpty
           ? _sinNotificaciones()
           : ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: notificacionesFiltradas.length,
+              itemCount: notificaciones.length,
               itemBuilder: (_, i) {
-                final noti = notificacionesFiltradas[i];
+                final noti = notificaciones[i];
 
                 final usuario = noti["usuarioNotificacion"] ?? {};
-                final trabajo = noti["trabajo"] ?? {};
-
                 final nombreUsuario =
-                    usuario["nombre"] ?? "Usuario desconocido";
+                    usuario["nombre"] ?? "Sistema";
 
-                final tituloTrabajo =
-                    trabajo["titulo"] ?? "Trabajo no especificado";
+                final String mensaje =
+                    noti["mensaje"] ?? "Sin mensaje";
 
                 final bool leido = noti["leido"] ?? false;
 
@@ -76,7 +64,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                   context,
                   notificacion: noti,
                   nombreUsuario: nombreUsuario,
-                  tituloTrabajo: tituloTrabajo,
+                  mensaje: mensaje,
                   leido: leido,
                   onMarcarLeida: () =>
                       notiProv.marcarLeida(noti["id"]),
@@ -86,6 +74,9 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     );
   }
 
+  // ======================================================
+  // SIN NOTIFICACIONES
+  // ======================================================
   Widget _sinNotificaciones() {
     return const Center(
       child: Text(
@@ -99,11 +90,14 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
     );
   }
 
+  // ======================================================
+  // CARD NOTIFICACIÓN
+  // ======================================================
   Widget _cardNotificacion(
     BuildContext context, {
     required Map<String, dynamic> notificacion,
     required String nombreUsuario,
-    required String tituloTrabajo,
+    required String mensaje,
     required bool leido,
     required VoidCallback onMarcarLeida,
   }) {
@@ -119,7 +113,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: leido ? Colors.white : const Color(0xFFE8E5FF),
           borderRadius: BorderRadius.circular(14),
@@ -136,7 +130,11 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
             CircleAvatar(
               radius: 26,
               backgroundColor: Colors.deepPurple.shade200,
-              child: const Icon(Icons.person, color: Colors.white, size: 30),
+              child: const Icon(
+                Icons.notifications,
+                color: Colors.white,
+                size: 28,
+              ),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -152,7 +150,7 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    "Trabajo: $tituloTrabajo",
+                    mensaje,
                     style: const TextStyle(fontSize: 14),
                   ),
                 ],
