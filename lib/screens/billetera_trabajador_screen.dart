@@ -1,14 +1,51 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
-class BilleteraTrabajadorScreen extends StatelessWidget {
+import '../../providers/transactions_provider.dart';
+import '../../providers/auth_provider.dart';
+
+class BilleteraTrabajadorScreen extends StatefulWidget {
   const BilleteraTrabajadorScreen({super.key});
 
   @override
+  State<BilleteraTrabajadorScreen> createState() =>
+      _BilleteraTrabajadorScreenState();
+}
+
+class _BilleteraTrabajadorScreenState
+    extends State<BilleteraTrabajadorScreen> {
+
+  @override
+  void initState() {
+    super.initState();
+
+    // 🔥 CARGAR INGRESOS DEL TRABAJADOR
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      context
+          .read<TransactionsProvider>()
+          .cargarTransacciones(auth.token!);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final transProv = context.watch<TransactionsProvider>();
+
+    // 🔹 SOLO INGRESOS
+    final ingresos = transProv.transacciones
+        .where((t) => t["tipo"] == "ingreso")
+        .toList();
+
+    // 🔹 TOTAL INGRESOS
+    final totalIngreso = ingresos.fold<double>(
+      0,
+      (sum, t) => sum + (t["monto"] as num).toDouble(),
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
-
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
@@ -22,92 +59,92 @@ class BilleteraTrabajadorScreen extends StatelessWidget {
         ),
       ),
 
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: ListView(
-          children: [
-            const SizedBox(height: 10),
+      body: transProv.loading
+          ? const Center(child: CircularProgressIndicator())
+          : Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ListView(
+                children: [
+                  const SizedBox(height: 10),
 
-            const Text(
-              "Resumen Financiero",
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  const Text(
+                    "Resumen Financiero",
+                    style:
+                        TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 5),
+                  const Text(
+                    "Tus ingresos generados por servicios",
+                    style:
+                        TextStyle(fontSize: 15, color: Colors.black54),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  /// ============================
+                  /// RESUMEN
+                  /// ============================
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _cardResumen(
+                        "Total Ingreso",
+                        "\$${totalIngreso.toStringAsFixed(2)}",
+                        "Acumulado",
+                        Icons.attach_money,
+                        iconColor: Colors.green,
+                      ),
+                      _cardResumen(
+                        "Servicios",
+                        ingresos.length.toString(),
+                        "Pagados",
+                        Icons.task_alt,
+                        iconColor: Colors.blue,
+                      ),
+                      _cardResumen(
+                        "Estado",
+                        ingresos.isEmpty ? "0%" : "↑",
+                        "Activo",
+                        Icons.trending_up,
+                        iconColor: Colors.purple,
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  const Text(
+                    "Historial de Ingresos",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  ingresos.isEmpty
+                      ? _itemIngreso(
+                          "Sin ingresos aún",
+                          "Aún no te han pagado",
+                          0,
+                          "--/--/----",
+                        )
+                      : Column(
+                          children: ingresos.map((t) {
+                            return _itemIngreso(
+                              t["descripcion"] ?? "Pago recibido",
+                              "Empleador",
+                              (t["monto"] as num).toDouble(),
+                              DateFormat('dd/MM/yyyy')
+                                  .format(DateTime.parse(t["createdAt"])),
+                            );
+                          }).toList(),
+                        ),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-
-            const SizedBox(height: 5),
-            const Text(
-              "Tus ingresos generados por servicios",
-              style: TextStyle(fontSize: 15, color: Colors.black54),
-            ),
-
-            const SizedBox(height: 25),
-
-            /// ============================
-            /// RESUMEN DE INGRESOS
-            /// ============================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _cardResumen(
-                  "Total Ingreso",
-                  "\$0.00",
-                  "Del mes actual",
-                  Icons.attach_money,
-                  iconColor: Colors.green,
-                ),
-                _cardResumen(
-                  "Servicios Realizados",
-                  "0",
-                  "Completados",
-                  Icons.task_alt,
-                  iconColor: Colors.blue,
-                ),
-                _cardResumen(
-                  "Tendencia",
-                  "0%",
-                  "Estable",
-                  Icons.trending_up,
-                  iconColor: Colors.purple,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 30),
-
-            const Text(
-              "Historial de Ingresos",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-
-            const SizedBox(height: 10),
-
-            /// ============================
-            /// LISTA DE INGRESOS (AÚN VACÍA)
-            /// Luego la llenamos con la BD
-            /// ============================
-            _itemIngreso(
-              "Sin ingresos aún",
-              "Aún no completas servicios",
-              0,
-              "--/--/----",
-            ),
-
-            const SizedBox(height: 40),
-
-            /// ============================
-            /// BOTONES SECUNDARIOS
-            /// ============================
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _boton("Exportar Reporte"),
-                _boton("Ver Detalles"),
-              ],
-            ),
-
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
     );
   }
 
@@ -128,13 +165,6 @@ class BilleteraTrabajadorScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.black12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 4,
-            offset: const Offset(0, 3),
-          ),
-        ],
       ),
       child: Column(
         children: [
@@ -142,19 +172,21 @@ class BilleteraTrabajadorScreen extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             total,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style:
+                const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 5),
           Text(
             titulo,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 13, color: Colors.black87),
+            style:
+                const TextStyle(fontSize: 13, color: Colors.black87),
           ),
-          const SizedBox(height: 3),
           Text(
             descripcion,
             textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Colors.black54),
+            style:
+                const TextStyle(fontSize: 12, color: Colors.black54),
           ),
         ],
       ),
@@ -162,9 +194,10 @@ class BilleteraTrabajadorScreen extends StatelessWidget {
   }
 
   // ======================================================
-  // ITEM INGRESO (similar a itemServicio, pero para ingresos)
+  // ITEM INGRESO
   // ======================================================
-  Widget _itemIngreso(String titulo, String cliente, double precio, String fecha) {
+  Widget _itemIngreso(
+      String titulo, String cliente, double precio, String fecha) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(15),
@@ -182,62 +215,44 @@ class BilleteraTrabajadorScreen extends StatelessWidget {
                 radius: 20,
                 backgroundColor: Colors.green.shade50,
                 child: const Icon(Icons.arrow_downward,
-                    color: Colors.green, size: 26),
+                    color: Colors.green),
               ),
               const SizedBox(width: 12),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     titulo,
-                    style:
-                        const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                   Text(
                     cliente,
-                    style: const TextStyle(color: Colors.black54, fontSize: 13),
+                    style: const TextStyle(
+                        color: Colors.black54, fontSize: 13),
                   ),
                 ],
               ),
             ],
           ),
-
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 "\$${precio.toStringAsFixed(2)}",
                 style: const TextStyle(
-                    fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green),
               ),
               Text(
                 fecha,
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
+                style: const TextStyle(
+                    fontSize: 13, color: Colors.black54),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  // ======================================================
-  // BOTÓN SIMPLE
-  // ======================================================
-  Widget _boton(String texto) {
-    return Container(
-      width: 150,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: Colors.black12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        texto,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
       ),
     );
   }

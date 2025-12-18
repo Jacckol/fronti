@@ -2,13 +2,16 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-// 👉 IMPORTA TU PANTALLA DE PAGO
 import 'pago_paypal_screen.dart';
 
 const String baseUrl = "http://10.0.2.2:4000/api";
 
 class ProgresoTrabajoScreen extends StatefulWidget {
   final int trabajoId;
+
+  // ✅ PUEDE SER NULL (ahí estaba el error)
+  final int? trabajadorId;
+
   final String nombreTrabajador;
   final String tituloTrabajo;
   final String rol; // EMPLEADOR | TRABAJADOR
@@ -16,6 +19,7 @@ class ProgresoTrabajoScreen extends StatefulWidget {
   const ProgresoTrabajoScreen({
     super.key,
     required this.trabajoId,
+    required this.trabajadorId,
     required this.nombreTrabajador,
     required this.tituloTrabajo,
     required this.rol,
@@ -31,7 +35,7 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
   String estadoTrabajo = "activo";
 
   // ======================================================
-  // 🔄 CARGAR ESTADO REAL
+  // 🔄 CARGAR ESTADO REAL DEL TRABAJO
   // ======================================================
   Future<void> cargarEstadoTrabajo() async {
     final url = Uri.parse("$baseUrl/trabajos/${widget.trabajoId}");
@@ -40,7 +44,9 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
       final response = await http.get(url);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() => estadoTrabajo = data["estado"]);
+        if (mounted) {
+          setState(() => estadoTrabajo = data["estado"]);
+        }
       }
     } catch (_) {}
   }
@@ -49,6 +55,19 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
   // 🔥 FINALIZAR TRABAJO + IR A PAGO
   // ======================================================
   Future<void> finalizarTrabajo() async {
+    if (loading) return;
+
+    // ❌ PROTECCIÓN CLAVE (ESTO EVITA EL CRASH)
+    if (widget.trabajadorId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("❌ El trabajador no existe"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     setState(() => loading = true);
 
     final url = Uri.parse(
@@ -62,27 +81,32 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
       if (response.statusCode == 200) {
         setState(() => estadoTrabajo = "finalizado");
 
-        // 🔔 MENSAJE CLARO
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              "✅ Trabajo finalizado. Debes realizar el pago.",
-            ),
+            content: Text("✅ Trabajo finalizado. Realiza el pago."),
             backgroundColor: Colors.green,
             duration: Duration(seconds: 2),
           ),
         );
 
-        // ⏳ PEQUEÑA PAUSA PARA QUE SE VEA EL MENSAJE
-        await Future.delayed(const Duration(milliseconds: 900));
+        await Future.delayed(const Duration(milliseconds: 800));
 
-        // 👉 IR A PANTALLA DE PAGO
-        Navigator.push(
+        // ==================================================
+        // 👉 IR A PAGO (YA SEGURO)
+        // ==================================================
+        final pagoRealizado = await Navigator.push<bool>(
           context,
           MaterialPageRoute(
-            builder: (_) => const PagoPayPalScreen(),
+            builder: (_) => PagoPayPalScreen(
+              trabajadorId: widget.trabajadorId!, // 🔒 YA NO ES NULL
+              trabajoId: widget.trabajoId,
+            ),
           ),
         );
+
+        if (pagoRealizado == true) {
+          cargarEstadoTrabajo();
+        }
       } else {
         final body = jsonDecode(response.body);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -138,26 +162,18 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F0FF),
-
-      // =======================
-      // APPBAR
-      // =======================
       appBar: AppBar(
         backgroundColor: const Color(0xFF6A4CE8),
         title: const Text("Progreso del Trabajo"),
         centerTitle: true,
       ),
-
-      // =======================
-      // BODY
-      // =======================
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // =======================
+            // =========================
             // CARD DEL TRABAJO
-            // =======================
+            // =========================
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -211,9 +227,6 @@ class _ProgresoTrabajoScreenState extends State<ProgresoTrabajoScreen> {
 
             const Spacer(),
 
-            // =======================
-            // BOTÓN INFERIOR
-            // =======================
             if (esEmpleador && estadoTrabajo != "finalizado")
               SizedBox(
                 width: double.infinity,

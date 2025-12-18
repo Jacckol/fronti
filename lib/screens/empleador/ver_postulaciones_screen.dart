@@ -49,7 +49,7 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
   }
 
   // =====================================================
-  // 🔥 ACEPTAR Y ENTRAR A PROGRESO
+  // 🔥 ACEPTAR Y ENTRAR A PROGRESO (FIX REAL)
   // =====================================================
   Future<void> aceptarYIrAProgreso(Map p) async {
     try {
@@ -65,6 +65,10 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
 
       if (resp.statusCode == 200) {
         final postulante = p["postulante"] ?? {};
+
+        // ✅ FIX REAL: USER ID, NO TRABAJADOR ID
+        final trabajadorId = postulante["userId"];
+
         await cargarPostulaciones();
 
         Navigator.push(
@@ -72,6 +76,7 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
           MaterialPageRoute(
             builder: (_) => ProgresoTrabajoScreen(
               trabajoId: widget.trabajoId,
+              trabajadorId: trabajadorId,
               tituloTrabajo: widget.tituloTrabajo,
               nombreTrabajador:
                   postulante["nombre"] ?? "Trabajador",
@@ -109,7 +114,7 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
   }
 
   // =====================================================
-  // 🎨 CHIP DE ESTADO MEJORADO
+  // 🎨 CHIP DE ESTADO
   // =====================================================
   Widget _estadoChip(String estado) {
     Color color = estado == "aceptado"
@@ -227,6 +232,7 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                           itemBuilder: (_, i) {
                             final p = postulaciones[i];
                             final postulante = p["postulante"] ?? {};
+
                             final nombre =
                                 postulante["nombre"] ?? "Sin nombre";
                             final email =
@@ -236,6 +242,9 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                                     ? "Sin mensaje"
                                     : p["mensaje"];
                             final estado = p["estado"] ?? "pendiente";
+
+                            // ✅ FIX REAL AQUÍ TAMBIÉN
+                            final trabajadorId = postulante["userId"];
 
                             return Container(
                               margin: const EdgeInsets.only(bottom: 16),
@@ -319,17 +328,6 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                                               ElevatedButton.styleFrom(
                                             backgroundColor:
                                                 Colors.green,
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                              horizontal: 20,
-                                              vertical: 12,
-                                            ),
-                                            shape:
-                                                RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      14),
-                                            ),
                                           ),
                                           child:
                                               const Text("Aceptar"),
@@ -340,22 +338,6 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                                               cambiarEstado(
                                             p["id"],
                                             "rechazado",
-                                          ),
-                                          style:
-                                              OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                Colors.red,
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                              horizontal: 18,
-                                              vertical: 12,
-                                            ),
-                                            shape:
-                                                RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                      14),
-                                            ),
                                           ),
                                           child:
                                               const Text("Rechazar"),
@@ -371,6 +353,8 @@ class _VerPostulacionesScreenState extends State<VerPostulacionesScreen> {
                                                     ProgresoTrabajoScreen(
                                                   trabajoId:
                                                       widget.trabajoId,
+                                                  trabajadorId:
+                                                      trabajadorId,
                                                   tituloTrabajo:
                                                       widget
                                                           .tituloTrabajo,

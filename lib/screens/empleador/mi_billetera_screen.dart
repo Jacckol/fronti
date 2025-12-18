@@ -15,7 +15,8 @@ class MiBilleteraEmpleadorScreen extends StatefulWidget {
 }
 
 class _MiBilleteraEmpleadorScreenState
-    extends State<MiBilleteraEmpleadorScreen> with SingleTickerProviderStateMixin {
+    extends State<MiBilleteraEmpleadorScreen>
+    with SingleTickerProviderStateMixin {
 
   late AnimationController _controller;
   late Animation<double> _fade;
@@ -68,7 +69,6 @@ class _MiBilleteraEmpleadorScreenState
         backgroundColor: const Color(0xFF6D4AFF),
         elevation: 0,
       ),
-
       body: transProv.loading
           ? const Center(child: CircularProgressIndicator())
           : FadeTransition(
@@ -81,16 +81,22 @@ class _MiBilleteraEmpleadorScreenState
                     _cardGlassResumen(totalGastos),
                     const SizedBox(height: 25),
 
-                    // 🔥 BOTONES MEJORADOS
+                    // 🔥 BOTÓN PAGO (FIX FINAL)
                     _botonGradiente(
                       text: "Pagar con PayPal (Simulado)",
                       icon: Icons.payment,
-                      colors: const [Color(0xFF6D4AFF), Color(0xFF9D7BFF)],
+                      colors: const [
+                        Color(0xFF6D4AFF),
+                        Color(0xFF9D7BFF),
+                      ],
                       onTap: () {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const PagoPayPalScreen(),
+                            builder: (_) => const PagoPayPalScreen(
+                              trabajadorId: 0, // dummy
+                              trabajoId: 0,    // 🔥 FIX CLAVE
+                            ),
                           ),
                         );
                       },
@@ -131,10 +137,18 @@ class _MiBilleteraEmpleadorScreenState
                         itemBuilder: (_, i) {
                           final t = trans[i];
                           if (t["tipo"] != "gasto") return const SizedBox();
-                          return _itemNeomorfico(
-                            descripcion: t["descripcion"] ?? "Pago",
-                            monto: (t["monto"] as num).toDouble(),
-                            fecha: t["createdAt"],
+                          return ListTile(
+                            title: Text(t["descripcion"] ?? "Pago"),
+                            subtitle: Text(
+                              t["createdAt"].toString().substring(0, 10),
+                            ),
+                            trailing: Text(
+                              "-\$${(t["monto"] as num).toStringAsFixed(2)}",
+                              style: const TextStyle(
+                                color: Colors.red,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           );
                         },
                       ),
@@ -146,7 +160,8 @@ class _MiBilleteraEmpleadorScreenState
     );
   }
 
-  // ⭐ TARJETA GLASS EFFECT
+  // ================= UI =================
+
   Widget _cardGlassResumen(double total) {
     return Container(
       padding: const EdgeInsets.all(25),
@@ -155,37 +170,20 @@ class _MiBilleteraEmpleadorScreenState
         gradient: LinearGradient(
           colors: [
             Colors.white.withOpacity(0.2),
-            Colors.white.withOpacity(0.05)
+            Colors.white.withOpacity(0.05),
           ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
-        border: Border.all(color: Colors.white.withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.deepPurple.withOpacity(0.15),
-            blurRadius: 15,
-            offset: const Offset(0, 8),
-          )
-        ],
       ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.25),
-              borderRadius: BorderRadius.circular(18),
-            ),
-            child: const Icon(Icons.wallet, size: 40, color: Colors.white),
-          ),
+          const Icon(Icons.wallet, size: 40, color: Colors.white),
           const SizedBox(width: 25),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 "Total Gastado",
-                style: TextStyle(color: Colors.white70, fontSize: 16),
+                style: TextStyle(color: Colors.white70),
               ),
               Text(
                 "\$${total.toStringAsFixed(2)}",
@@ -202,7 +200,6 @@ class _MiBilleteraEmpleadorScreenState
     );
   }
 
-  // ⭐ BOTÓN CON GRADIENTE
   Widget _botonGradiente({
     required String text,
     required IconData icon,
@@ -213,20 +210,12 @@ class _MiBilleteraEmpleadorScreenState
       decoration: BoxDecoration(
         gradient: LinearGradient(colors: colors),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: colors.last.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          )
-        ],
       ),
       child: ElevatedButton(
         onPressed: onTap,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 15),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -238,86 +227,10 @@ class _MiBilleteraEmpleadorScreenState
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 17,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  // ⭐ ITEM DE TRANSACCIÓN NEOMÓRFICO
-  Widget _itemNeomorfico({
-    required String descripcion,
-    required double monto,
-    required String fecha,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 18),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3F1FF),
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.white,
-            offset: Offset(-4, -4),
-            blurRadius: 10,
-          ),
-          BoxShadow(
-            color: Color(0xFFB6A8FF),
-            offset: Offset(4, 4),
-            blurRadius: 12,
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: Colors.red.shade50,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.arrow_upward,
-                color: Colors.red, size: 26),
-          ),
-
-          const SizedBox(width: 16),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  descripcion,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  fecha.substring(0, 10),
-                  style: const TextStyle(
-                    color: Colors.grey,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Text(
-            "-\$${monto.toStringAsFixed(2)}",
-            style: const TextStyle(
-              color: Colors.red,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
       ),
     );
   }

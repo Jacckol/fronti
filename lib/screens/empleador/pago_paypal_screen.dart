@@ -2,71 +2,132 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
+
 import '../../providers/auth_provider.dart';
 
+const String baseUrl = "http://10.0.2.2:4000/api";
+
 class PagoPayPalScreen extends StatefulWidget {
-  const PagoPayPalScreen({super.key});
+  final int trabajadorId;
+  final int trabajoId; // ✅ ES UN TRABAJO, NO SERVICIO
+
+  const PagoPayPalScreen({
+    super.key,
+    required this.trabajadorId,
+    required this.trabajoId,
+  });
 
   @override
   State<PagoPayPalScreen> createState() => _PagoPayPalScreenState();
 }
 
 class _PagoPayPalScreenState extends State<PagoPayPalScreen> {
-  final montoCtrl = TextEditingController();
-  final nombreCtrl = TextEditingController();
-  final tarjetaCtrl = TextEditingController();
-  final cvvCtrl = TextEditingController();
+  final TextEditingController montoCtrl = TextEditingController();
+  final TextEditingController nombreCtrl = TextEditingController();
+  final TextEditingController tarjetaCtrl = TextEditingController();
+  final TextEditingController cvvCtrl = TextEditingController();
 
   bool cargando = false;
 
+  @override
+  void dispose() {
+    montoCtrl.dispose();
+    nombreCtrl.dispose();
+    tarjetaCtrl.dispose();
+    cvvCtrl.dispose();
+    super.dispose();
+  }
+
+  // ======================================================
+  // 🔥 PROCESAR PAGO (EMPLEADOR → TRABAJADOR)
+  // ======================================================
   Future<void> procesarPago() async {
-    if (montoCtrl.text.isEmpty) {
+    final double? monto = double.tryParse(montoCtrl.text);
+
+    if (monto == null || monto <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Ingresa un monto válido")),
+        const SnackBar(
+          content: Text("Ingresa un monto válido"),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final auth = context.read<AuthProvider>();
+
+    if (auth.token == null || auth.userId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Sesión no válida"),
+          backgroundColor: Colors.red,
+        ),
       );
       return;
     }
 
     setState(() => cargando = true);
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    final url = Uri.parse("http://10.0.2.2:4000/api/transactions");
-
-    final resp = await http.post(
-      url,
-      headers: {
-        "Authorization": "Bearer ${auth.token}",
-        "Content-Type": "application/json",
-      },
-      body: jsonEncode({
-        "userId": auth.userId,
-        "monto": double.parse(montoCtrl.text),
-        "tipo": "gasto",
-        "descripcion": "Pago con PayPal (simulado)"
-      }),
-    );
-
-    setState(() => cargando = false);
-
-    if (resp.statusCode == 200) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Pago realizado con éxito")),
+    try {
+      final resp = await http.post(
+        Uri.parse("$baseUrl/transactions"),
+        headers: {
+          "Authorization": "Bearer ${auth.token}",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({
+          // ✅ EXACTAMENTE lo que espera tu backend
+          "empleadorId": auth.userId,
+          "trabajadorId": widget.trabajadorId,
+          "monto": monto,
+          "descripcion": "Pago por trabajo (PayPal simulado)",
+          "trabajoId": widget.trabajoId, // 🔥 CLAVE
+        }),
       );
-      Navigator.pop(context);
-    } else {
+
+      if (!mounted) return;
+      setState(() => cargando = false);
+
+      if (resp.statusCode == 200) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Pago realizado con éxito"),
+            backgroundColor: Colors.green,
+          ),
+        );
+
+        Navigator.pop(context, true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("❌ Error al pagar: ${resp.body}"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => cargando = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: ${resp.body}")),
+        const SnackBar(
+          content: Text("❌ No se pudo conectar al servidor"),
+          backgroundColor: Colors.red,
+        ),
       );
     }
   }
 
+  // ======================================================
+  // 🧱 UI
+  // ======================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Pago PayPal (Simulado)"),
         backgroundColor: Colors.deepPurple,
+        centerTitle: true,
       ),
       body: cargando
           ? const Center(child: CircularProgressIndicator())
@@ -83,10 +144,11 @@ class _PagoPayPalScreenState extends State<PagoPayPalScreen> {
                     controller: montoCtrl,
                     keyboardType: TextInputType.number,
                     decoration: const InputDecoration(
-                      hintText: "Ej: 20.00",
+                      hintText: "Ej: 30.00",
                       prefixIcon: Icon(Icons.attach_money),
                     ),
                   ),
+
                   const SizedBox(height: 20),
 
                   const Text(
@@ -131,17 +193,21 @@ class _PagoPayPalScreenState extends State<PagoPayPalScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: procesarPago,
+                      onPressed: cargando ? null : procesarPago,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
                       ),
                       child: const Text(
                         "Confirmar Pago",
-                        style: TextStyle(fontSize: 18, color: Colors.white),
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
-                  )
+                  ),
                 ],
               ),
             ),

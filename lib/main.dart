@@ -10,6 +10,7 @@ import 'providers/mis_servicios_provider.dart';
 import 'providers/servicio_provider.dart';
 import 'providers/transactions_provider.dart';
 import 'providers/notificaciones_provider.dart';
+import 'providers/billetera_provider.dart';
 
 // 🔹 Pantallas principales
 import 'screens/seleccion_screen.dart';
@@ -25,7 +26,6 @@ import 'screens/empleador/mis_publicaciones_screen.dart';
 import 'screens/empleador/publicar_trabajo_screen.dart';
 import 'screens/empleador/mi_billetera_screen.dart';
 import 'screens/empleador/historial_transacciones_screen.dart';
-import 'screens/empleador/pago_paypal_screen.dart';
 
 // 🔹 Home Trabajador
 import 'screens/home_trabajador.dart';
@@ -42,7 +42,7 @@ import 'screens/ofertas_trabajos_screen.dart';
 import 'screens/notificaciones/notificaciones_screen.dart';
 import 'screens/notificaciones/notificacion_detalle_screen.dart';
 
-// 🔥 PROGRESO DEL TRABAJO (RUTA CORRECTA)
+// 🔥 Progreso del trabajo
 import 'screens/empleador/progreso_trabajo_screen.dart';
 
 void main() {
@@ -64,6 +64,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ServicioProvider()),
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => NotificacionesProvider()),
+        ChangeNotifierProvider(create: (_) => BilleteraProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -78,7 +79,7 @@ class MyApp extends StatelessWidget {
         initialRoute: '/seleccion',
 
         // ==========================================================
-        // 🔥 SISTEMA COMPLETO DE RUTAS
+        // 🔥 SISTEMA DE RUTAS (CORRECTO)
         // ==========================================================
         onGenerateRoute: (settings) {
           final args = settings.arguments as Map<String, dynamic>? ?? {};
@@ -177,11 +178,6 @@ class MyApp extends StatelessWidget {
                 builder: (_) => const HistorialTransaccionesScreen(),
               );
 
-            case '/pagoPaypal':
-              return MaterialPageRoute(
-                builder: (_) => const PagoPayPalScreen(),
-              );
-
             case '/notificaciones':
               return MaterialPageRoute(
                 builder: (_) => const NotificacionesScreen(),
@@ -194,11 +190,12 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
-            // 🔥 PROGRESO DEL TRABAJO
+            // 🔥 AQUÍ ESTABA EL ERROR (YA ARREGLADO)
             case '/progresoTrabajo':
               return MaterialPageRoute(
                 builder: (_) => ProgresoTrabajoScreen(
                   trabajoId: args['trabajoId'],
+                  trabajadorId: args['trabajadorId'], // ✅ CLAVE
                   nombreTrabajador: args['nombreTrabajador'],
                   tituloTrabajo: args['tituloTrabajo'],
                   rol: args['rol'],
