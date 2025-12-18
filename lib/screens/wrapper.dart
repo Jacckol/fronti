@@ -2,39 +2,41 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 
-// Tus pantallas
+// Screens
 import 'login_screen.dart';
-import 'home_screen.dart';
-import 'admin_dashboard.dart';
-import 'profesional_dashboard.dart';
+import 'empleador/home_empleador_screen.dart';
+import 'home_trabajador.dart';
 
 class Wrapper extends StatelessWidget {
   const Wrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    final auth = context.watch<AuthProvider>();
 
-    // Si está cargando (por ejemplo, al iniciar sesión)
-    if (authProvider.isLoading) {
+    // ⏳ Cargando sesión
+    if (auth.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Si no hay usuario logueado
-    if (authProvider.user == null) {
-      return const LoginScreen();
+    // 🔒 NO LOGUEADO
+    if (auth.token == null || auth.role == null) {
+      return const LoginScreen(rol: 'trabajador');
     }
 
-    // Si hay usuario, navegar según su rol
-    switch (authProvider.user!.role) {
-      case 'admin':
-        return const AdminDashboard();
-      case 'profesional':
-        return const ProfesionalDashboard();
-      default:
-        return const HomeScreen(); // usuario normal
+    // 👷 TRABAJADOR
+    if (auth.role == 'trabajador') {
+      return const HomeTrabajadorScreen();
     }
+
+    // 🧑‍💼 EMPLEADOR
+    if (auth.role == 'empleador') {
+      return const HomeEmpleadorScreen();
+    }
+
+    // FALLBACK (por seguridad)
+    return const LoginScreen(rol: 'trabajador');
   }
 }

@@ -2,12 +2,15 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 class AuthService {
+  // =====================================================
+  // ✅ BASE URL
+  // =====================================================
   final String baseUrl = 'http://10.0.2.2:4000/api';
 
   // =====================================================
   // 🟦 LOGIN
   // =====================================================
-  Future<Map<String, dynamic>?> login(String username, String password) async {
+  Future<Map<String, dynamic>?> login(String email, String password) async {
     final url = Uri.parse('$baseUrl/login');
 
     try {
@@ -15,7 +18,7 @@ class AuthService {
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'email': username,
+          'email': email,
           'password': password,
         }),
       );
@@ -23,91 +26,69 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
 
-        return {
-          'rol': data['rol'] ?? data['user']?['rol'],
-          'user': data['user'] ?? {},
-          'token': data['token'] ?? '',
-          'perfilCompleto': data['perfilCompleto'] ?? false,
-        };
+        if (data['success'] == true) {
+          return {
+            'token': data['token'],
+            'rol': data['rol'] ?? data['user']?['rol'],
+            'perfilCompleto': data['perfilCompleto'] ?? false,
+            'user': data['user'],
+            'trabajador': data['trabajador'],
+            'empleador': data['empleador'],
+          };
+        }
       }
-
-      return null;
     } catch (e) {
-      print("❌ Error login: $e");
-      return null;
+      print('❌ ERROR LOGIN SERVICE: $e');
     }
+
+    return null;
   }
 
   // =====================================================
-  // 🟩 REGISTRO USUARIO NORMAL
+  // 🟩 REGISTRO (USUARIO / TRABAJADOR / EMPLEADOR)
   // =====================================================
-  Future<bool> registerUser(String nombre, String password, String email) async {
-    final url = Uri.parse('$baseUrl/register');
-
-    try {
-      final res = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'nombre': nombre,
-          'email': email,
-          'password': password,
-          'rol': 'usuario'
-        }),
-      );
-
-      return res.statusCode == 201;
-
-    } catch (e) {
-      print("❌ Error registrando usuario: $e");
-      return false;
-    }
-  }
-
-  // =====================================================
-  // 🟨 REGISTRO TRABAJADOR — CORRECTO
-  // =====================================================
-  Future<bool> registerWorker({
+  Future<bool> registerUser({
     required String nombre,
-    required String usuario,
     required String email,
     required String password,
-    required String telefono,
+    required String rol,
+    String telefono = '',
   }) async {
     final url = Uri.parse('$baseUrl/register');
 
     try {
-      final res = await http.post(
+      final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'nombre': nombre,
-          'usuario': usuario,
           'email': email,
           'password': password,
+          'rol': rol,        // 👈 CLAVE (NO QUITAR)
           'telefono': telefono,
-          'rol': 'trabajador'
         }),
       );
 
-      print("📨 Registro trabajador → ${res.body}");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['success'] == true;
+      }
 
-      return res.statusCode == 201;
-
+      return false;
     } catch (e) {
-      print("❌ Error registrando trabajador: $e");
+      print('❌ ERROR REGISTER SERVICE: $e');
       return false;
     }
   }
 
   // =====================================================
-  // 🟧 GUARDAR PERFIL LABORAL
+  // 🟧 PERFIL LABORAL
   // =====================================================
-  Future<bool> savePerfilLaboral(Map perfil, String token) async {
+  Future<bool> savePerfilLaboral(Map<String, dynamic> perfil, String token) async {
     final url = Uri.parse('$baseUrl/perfil-laboral');
 
     try {
-      final res = await http.post(
+      final response = await http.post(
         url,
         headers: {
           'Content-Type': 'application/json',
@@ -116,10 +97,9 @@ class AuthService {
         body: jsonEncode(perfil),
       );
 
-      return res.statusCode == 201;
-
+      return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
-      print("❌ Error guardando perfil: $e");
+      print('❌ ERROR PERFIL LABORAL: $e');
       return false;
     }
   }

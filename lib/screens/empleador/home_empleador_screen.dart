@@ -12,6 +12,9 @@ import '../../screens/notificaciones/notificaciones_screen.dart';
 import '../ofertas_screen.dart';
 import 'mi_billetera_screen.dart';
 
+// 🔥 IMPORT CORRECTO DE BUSCAR PERFILES
+import 'package:flutter_frontend/screens/empleador/buscar_perfiles_screen.dart';
+
 class HomeEmpleadorScreen extends StatefulWidget {
   const HomeEmpleadorScreen({super.key});
 
@@ -144,13 +147,20 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
 
             const SizedBox(height: 15),
 
-            // PERFILES DESTACADOS
+            // 🔍 BUSCAR PERFILES DESTACADOS (YA CONECTADO)
             _menuButton(
               icon: Icons.group_outlined,
               color: Colors.green,
               title: "Buscar Perfiles Destacados",
               subtitle: "Encuentra trabajadores calificados",
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => BuscarPerfilesScreen(),
+                  ),
+                );
+              },
             ),
 
             const SizedBox(height: 15),

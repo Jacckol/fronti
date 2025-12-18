@@ -8,20 +8,14 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
-  // ============================================================
-  // 🔹 CAMPOS DEL USUARIO
-  // ============================================================
-  String? _role;                // "trabajador" | "empleador"
-  String? _userName;            // nombre
-  int? _userId;                 // ID tabla users
-  int _empleadorId = 0;         // ID tabla empleadores
-  int _trabajadorId = 0;        // ID tabla trabajadores
+  String? _role;
+  String? _userName;
+  int? _userId;
+  int _empleadorId = 0;
+  int _trabajadorId = 0;
   String? _token;
   bool _perfilCompleto = false;
 
-  // ============================================================
-  // 🔹 GETTERS
-  // ============================================================
   String? get role => _role;
   String? get userName => _userName;
   int? get userId => _userId;
@@ -35,146 +29,109 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================
+  // =====================================================
   // 🔹 LOGIN
-  // ============================================================
+  // =====================================================
   Future<String?> login(String email, String password) async {
     isLoading = true;
-
     try {
       final response = await _authService.login(email, password);
-      debugPrint("🟡 RESPONSE LOGIN: $response");
+      if (response == null) return null;
 
-      if (response != null) {
-        final user = response["user"] ?? {};
-        final empleadorData = response["empleador"];
-        final trabajadorData = response["trabajador"];
+      final user = response['user'] ?? {};
 
-        // Datos base
-        _role = response["rol"]; // ⚠️ el backend manda "rol"
-        _userName = user["nombre"] ?? "Usuario";
-        _userId = user["id"];
-        _token = response["token"];
-        _perfilCompleto = response["perfilCompleto"] ?? false;
+      _role = response['rol'];
+      _userName = user['nombre'];
+      _userId = user['id'];
+      _token = response['token'];
+      _perfilCompleto = response['perfilCompleto'] ?? false;
 
-        // IDs correctos
-        _empleadorId =
-            (empleadorData != null && empleadorData["id"] != null)
-                ? empleadorData["id"]
-                : 0;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', _token ?? '');
+      await prefs.setString('role', _role ?? '');
+      await prefs.setString('userName', _userName ?? '');
+      await prefs.setInt('userId', _userId ?? 0);
+      await prefs.setBool('perfilCompleto', _perfilCompleto);
 
-        _trabajadorId =
-            (trabajadorData != null && trabajadorData["id"] != null)
-                ? trabajadorData["id"]
-                : 0;
-
-        debugPrint(
-          "✅ LOGIN OK → role=$_role empleadorId=$_empleadorId trabajadorId=$_trabajadorId",
-        );
-
-        // Guardar sesión
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString("token", _token ?? "");
-        await prefs.setString("role", _role ?? "");
-        await prefs.setString("userName", _userName ?? "");
-        await prefs.setInt("userId", _userId ?? 0);
-        await prefs.setInt("empleadorId", _empleadorId);
-        await prefs.setInt("trabajadorId", _trabajadorId);
-        await prefs.setBool("perfilCompleto", _perfilCompleto);
-
-        isLoading = false;
-        notifyListeners();
-        return _role;
-      }
-    } catch (e) {
-      debugPrint("❌ Error en login Provider: $e");
+      return _role;
+    } finally {
+      isLoading = false;
     }
-
-    isLoading = false;
-    notifyListeners();
-    return null;
   }
 
-  // ============================================================
-  // 🔹 REGISTRO USUARIO BASE
-  // ============================================================
-  Future<bool> registerUser(
-    String nombre,
-    String password,
-    String email,
-  ) async {
-    isLoading = true;
-    notifyListeners();
+ // =====================================================
+// 🔹 REGISTRO (ÚNICO – COMO ANTES FUNCIONABA)
+// =====================================================
+Future<bool> register({
+  required String nombre,
+  required String email,
+  required String password,
+  required String rol,
+  String telefono = '',
+}) async {
+  isLoading = true;
 
+  try {
     final ok = await _authService.registerUser(
-      nombre,
-      password,
-      email,
+      nombre: nombre,
+      email: email,
+      password: password,
+      rol: rol,
+      telefono: telefono,
     );
 
-    isLoading = false;
-    notifyListeners();
     return ok;
+  } finally {
+    isLoading = false;
   }
+}
 
-  // ============================================================
-  // 🔹 REGISTRO TRABAJADOR
-  // ============================================================
+
+  // =====================================================
+  // 🔹 REGISTRO TRABAJADOR (LO QUE FALTABA)
+  // =====================================================
   Future<bool> registerWorker(
     String nombre,
-    String username,
+    String usuario,
     String password,
     String email,
     String telefono,
   ) async {
-    isLoading = true;
-    notifyListeners();
-
-    final ok = await _authService.registerWorker(
+    return await register(
       nombre: nombre,
-      usuario: username,
       email: email,
       password: password,
+      rol: 'trabajador',
       telefono: telefono,
     );
-
-    isLoading = false;
-    notifyListeners();
-    return ok;
   }
 
-  // ============================================================
-  // 🔹 PERFIL COMPLETO
-  // ============================================================
+  // =====================================================
+  // 🔹 PERFIL COMPLETO (LO QUE ROMPÍA LOGIN)
+  // =====================================================
   Future<void> setPerfilCompleto(bool value) async {
     _perfilCompleto = value;
-
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool("perfilCompleto", value);
-
+    await prefs.setBool('perfilCompleto', value);
     notifyListeners();
   }
 
-  // ============================================================
-  // 🔹 CARGAR SESIÓN
-  // ============================================================
+  // =====================================================
+  // 🔹 SESIÓN
+  // =====================================================
   Future<void> loadSession() async {
     final prefs = await SharedPreferences.getInstance();
-
-    _token = prefs.getString("token");
-    _role = prefs.getString("role");
-    _userName = prefs.getString("userName");
-    _userId = prefs.getInt("userId");
-    _empleadorId = prefs.getInt("empleadorId") ?? 0;
-    _trabajadorId = prefs.getInt("trabajadorId") ?? 0;
-    _perfilCompleto = prefs.getBool("perfilCompleto") ?? false;
-
+    _token = prefs.getString('token');
+    _role = prefs.getString('role');
+    _userName = prefs.getString('userName');
+    _userId = prefs.getInt('userId');
+    _perfilCompleto = prefs.getBool('perfilCompleto') ?? false;
     notifyListeners();
   }
 
-  // ============================================================
+  // =====================================================
   // 🔹 LOGOUT
-  // ============================================================
+  // =====================================================
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
@@ -182,8 +139,6 @@ class AuthProvider with ChangeNotifier {
     _role = null;
     _userName = null;
     _userId = null;
-    _empleadorId = 0;
-    _trabajadorId = 0;
     _token = null;
     _perfilCompleto = false;
 
