@@ -21,7 +21,6 @@ class Postulacion {
   final String duracion;
   final String mensaje;
   final DateTime fecha;
-
   EstadoPostulacion estado;
 
   Postulacion({
@@ -35,26 +34,24 @@ class Postulacion {
     required this.duracion,
     required this.mensaje,
     required this.fecha,
-    this.estado = EstadoPostulacion.pendiente,
+    required this.estado,
   });
 
   factory Postulacion.fromJson(Map<String, dynamic> json) {
     final trabajo = json["trabajo"] ?? {};
-    final postulante = json["postulante"] ?? {};
 
     return Postulacion(
-      id: json['id'],
-      trabajoId: json['trabajoId'],
-      titulo: trabajo['titulo'] ?? "Sin título",
-      categoria: trabajo['categoria'] ?? "Sin categoría",
-      empleador: postulante['nombre'] ?? "Desconocido",
-      ubicacion: trabajo['ubicacion'] ?? "",
-      presupuesto:
-          double.tryParse((trabajo['salario'] ?? "0").toString()) ?? 0,
-      duracion: trabajo['duracion'] ?? "",
-      mensaje: json['mensaje'] ?? "",
-      fecha: DateTime.parse(json['createdAt']),
-      estado: _estadoFromString(json['estado']),
+      id: json["id"],
+      trabajoId: trabajo["id"] ?? 0,
+      titulo: trabajo["titulo"] ?? "Sin título",
+      categoria: trabajo["categoria"] ?? "General",
+      empleador: "Empleador",
+      ubicacion: trabajo["ubicacion"] ?? "",
+      presupuesto: 0,
+      duracion: "",
+      mensaje: json["mensaje"] ?? "",
+      fecha: DateTime.parse(json["createdAt"]),
+      estado: _estadoFromString(json["estado"]),
     );
   }
 
@@ -78,9 +75,9 @@ class PostulacionesProvider extends ChangeNotifier {
 
   List<Postulacion> _postulaciones = [];
 
-  // ====================================
+  // ======================================================
   // GETTERS
-  // ====================================
+  // ======================================================
   List<Postulacion> get todas => _postulaciones;
 
   List<Postulacion> get pendientes =>
@@ -96,51 +93,49 @@ class PostulacionesProvider extends ChangeNotifier {
   int get totalAceptadas => aceptadas.length;
   int get totalRechazadas => rechazadas.length;
 
-  // ====================================
-  // CARGAR POSTULACIONES DESDE BACKEND
-  // ====================================
+  // ======================================================
+  // 🔥 CARGAR POSTULACIONES DESDE BACKEND (FIX REAL)
+  // ======================================================
   Future<void> cargarPostulaciones(int userId) async {
     try {
-      final url = Uri.parse("$baseUrl/api/postulaciones/usuario/$userId");
+      final url =
+          Uri.parse("$baseUrl/api/postulaciones/usuario/$userId");
+
       final resp = await http.get(url);
 
       if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
+        final decoded = jsonDecode(resp.body);
+        final List lista = decoded["postulaciones"] ?? [];
 
-        if (data is List) {
-          _postulaciones =
-              data.map<Postulacion>((p) => Postulacion.fromJson(p)).toList();
-        } else {
-          _postulaciones = [];
-        }
+        _postulaciones =
+            lista.map<Postulacion>((p) => Postulacion.fromJson(p)).toList();
       } else {
-        print("❌ Error cargarPostulaciones: ${resp.statusCode}");
+        _postulaciones = [];
       }
     } catch (e) {
-      print("❌ ERROR cargarPostulaciones: $e");
+      debugPrint("❌ ERROR cargarPostulaciones: $e");
+      _postulaciones = [];
     }
 
     notifyListeners();
   }
 
   // ======================================================
-  // 🔥 ALIAS (SOLUCIÓN DEFINITIVA A TU ERROR)
+  // 🔥 ALIAS PARA TUS PANTALLAS
   // ======================================================
-  // 👉 Tus pantallas llaman a `cargarDesdeBackend`
-  // 👉 Aquí simplemente redirigimos al método real
   Future<void> cargarDesdeBackend(int userId) async {
     await cargarPostulaciones(userId);
   }
 
-  // ====================================
+  // ======================================================
   // CREAR POSTULACIÓN
-  // ====================================
+  // ======================================================
   Future<bool> crearPostulacion({
     required int trabajoId,
     required int userId,
     required String mensaje,
 
-    // 🔥 CAMPOS PARA UI
+    // Campos solo para UI inmediata
     required String titulo,
     required String categoria,
     required String empleador,
@@ -173,6 +168,7 @@ class PostulacionesProvider extends ChangeNotifier {
           duracion: duracion,
           mensaje: mensaje,
           fecha: DateTime.now(),
+          estado: EstadoPostulacion.pendiente,
         );
 
         _postulaciones.insert(0, nueva);
@@ -180,15 +176,15 @@ class PostulacionesProvider extends ChangeNotifier {
         return true;
       }
     } catch (e) {
-      print("❌ ERROR crearPostulacion: $e");
+      debugPrint("❌ ERROR crearPostulacion: $e");
     }
 
     return false;
   }
 
-  // ====================================
+  // ======================================================
   // ACTUALIZAR ESTADO LOCAL
-  // ====================================
+  // ======================================================
   void actualizarEstadoLocal(int id, EstadoPostulacion nuevoEstado) {
     final index = _postulaciones.indexWhere((p) => p.id == id);
     if (index != -1) {
@@ -197,19 +193,19 @@ class PostulacionesProvider extends ChangeNotifier {
     }
   }
 
-  // ====================================
-  // ELIMINAR LOCALMENTE
-  // ====================================
+  // ======================================================
+  // ELIMINAR LOCAL
+  // ======================================================
   void eliminarPostulacionLocal(int id) {
     _postulaciones.removeWhere((p) => p.id == id);
     notifyListeners();
   }
 
-  // ====================================
-  // LIMPIAR TODO
-  // ====================================
+  // ======================================================
+  // LIMPIAR
+  // ======================================================
   void limpiar() {
-    _postulaciones = [];
+    _postulaciones.clear();
     notifyListeners();
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/postulaciones_provider.dart';
+import '../providers/auth_provider.dart';
 import 'postulacion_detalle_screen.dart';
 
 class MisPostulacionesScreen extends StatefulWidget {
@@ -18,20 +19,20 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   FiltroPostulacion _filtro = FiltroPostulacion.todas;
 
   // ======================================================
-  // 🔥 CLAVE: RECARGAR POSTULACIONES DESDE BACKEND
+  // 🔥 CARGAR POSTULACIONES DEL USUARIO LOGUEADO
   // ======================================================
   @override
   void initState() {
     super.initState();
 
-    Future.microtask(() {
-      final prov =
-          Provider.of<PostulacionesProvider>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final postulacionesProv =
+          context.read<PostulacionesProvider>();
+      final auth = context.read<AuthProvider>();
 
-      // 🔴 CAMBIA ESTE ID POR EL USUARIO LOGUEADO REAL
-      const int userId = 1;
-
-      prov.cargarDesdeBackend(userId);
+      if (auth.userId != null) {
+        postulacionesProv.cargarDesdeBackend(auth.userId!);
+      }
     });
   }
 
@@ -65,9 +66,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         children: [
           const SizedBox(height: 16),
 
-          // -----------------------------------------------------
+          // ======================================================
           // CONTADORES
-          // -----------------------------------------------------
+          // ======================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -98,9 +99,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 16),
 
-          // -----------------------------------------------------
+          // ======================================================
           // FILTROS
-          // -----------------------------------------------------
+          // ======================================================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -115,9 +116,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 8),
 
-          // -----------------------------------------------------
+          // ======================================================
           // LISTA
-          // -----------------------------------------------------
+          // ======================================================
           Expanded(
             child: lista.isEmpty
                 ? const Center(
@@ -167,8 +168,10 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
               ),
             ),
             const SizedBox(height: 4),
-            Text(label,
-                style: TextStyle(fontSize: 12, color: textColor)),
+            Text(
+              label,
+              style: TextStyle(fontSize: 12, color: textColor),
+            ),
           ],
         ),
       ),
@@ -180,6 +183,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   // ======================================================
   Widget _filtroChip(String texto, FiltroPostulacion value) {
     final bool activo = _filtro == value;
+
     return Expanded(
       child: GestureDetector(
         onTap: () => setState(() => _filtro = value),
@@ -196,7 +200,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
               texto,
               style: TextStyle(
                 fontSize: 12,
-                color: activo ? Colors.white : const Color(0xFF6B7280),
+                color: activo
+                    ? Colors.white
+                    : const Color(0xFF6B7280),
               ),
             ),
           ),
@@ -345,8 +351,10 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
                 },
                 child: const Text(
                   'Eliminar',
-                  style:
-                      TextStyle(fontSize: 12, color: Colors.red),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.red,
+                  ),
                 ),
               ),
             ],
