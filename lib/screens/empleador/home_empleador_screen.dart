@@ -5,14 +5,12 @@ import 'package:provider/provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/notificaciones_provider.dart';
 
-// Pantallas unificadas
+// Pantallas
 import '../../screens/notificaciones/notificaciones_screen.dart';
-
-// Pantallas reales del empleador
 import '../ofertas_screen.dart';
 import 'mi_billetera_screen.dart';
 
-// 🔥 IMPORT CORRECTO DE BUSCAR PERFILES
+// Buscar perfiles
 import 'package:flutter_frontend/screens/empleador/buscar_perfiles_screen.dart';
 
 class HomeEmpleadorScreen extends StatefulWidget {
@@ -27,7 +25,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
   void initState() {
     super.initState();
 
-    /// 🔥 Cargar notificaciones al abrir el módulo
+    /// 🔔 Cargar notificaciones
     Future.microtask(() {
       final auth = context.read<AuthProvider>();
       final notiProv = context.read<NotificacionesProvider>();
@@ -35,10 +33,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
       final userId = auth.userId;
 
       if (userId != null && userId != 0) {
-        print("🔵 Cargando notificaciones para EMPLEADOR USERID: $userId");
         notiProv.cargarNotificaciones(userId);
-      } else {
-        print("⚠️ userId no disponible aún");
       }
     });
   }
@@ -46,6 +41,10 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
+    final noti = context.watch<NotificacionesProvider>();
+
+    final nombre = auth.userName ?? 'Empleador';
+
     final userId = auth.userId;
 
     return Scaffold(
@@ -57,7 +56,6 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        centerTitle: true,
         title: const Text(
           "Portal del Empleador",
           style: TextStyle(
@@ -66,56 +64,64 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
           ),
         ),
         actions: [
-          Consumer<NotificacionesProvider>(
-            builder: (_, noti, __) {
-              return Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.notifications, color: Colors.black),
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const NotificacionesScreen(),
-                        ),
-                      );
+          // 🔔 NOTIFICACIONES
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.black),
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificacionesScreen(),
+                    ),
+                  );
 
-                      /// 🔄 Recargar notificaciones al volver
-                      if (userId != null && userId != 0) {
-                        noti.cargarNotificaciones(userId);
-                      }
-                    },
-                  ),
-
-                  // 🔥 Badge
-                  if (noti.unreadCount > 0)
-                    Positioned(
-                      right: 6,
-                      top: 6,
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 18,
-                          minHeight: 18,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${noti.unreadCount}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                  if (userId != null && userId != 0) {
+                    noti.cargarNotificaciones(userId);
+                  }
+                },
+              ),
+              if (noti.unreadCount > 0)
+                Positioned(
+                  right: 6,
+                  top: 6,
+                  child: Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: const BoxDecoration(
+                      color: Colors.red,
+                      shape: BoxShape.circle,
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 18,
+                      minHeight: 18,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${noti.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
-                ],
+                  ),
+                ),
+            ],
+          ),
+
+          // 🚪 CERRAR SESIÓN
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.black),
+            tooltip: "Cerrar sesión",
+            onPressed: () {
+              auth.logout();
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                '/seleccion',
+                (route) => false,
               );
             },
           ),
@@ -129,14 +135,37 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
         padding: const EdgeInsets.all(20),
         child: ListView(
           children: [
+            // 👋 BIENVENIDA
+            Text(
+              'Bienvenido 👋 $nombre',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF5B21B6),
+              ),
+            ),
+            const SizedBox(height: 6),
             const Text(
-              "¿Qué deseas hacer hoy?",
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              "Gestiona tu perfil y servicios",
+              style: TextStyle(color: Colors.black54),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 25),
 
-            // PUBLICAR TRABAJO
+            // 🧍‍♂️ MI PERFIL
+            _menuButton(
+              icon: Icons.person_outline,
+              color: Colors.purple,
+              title: "Mi Perfil",
+              subtitle: "Editar información",
+              onTap: () {
+                Navigator.pushNamed(context, '/perfilEmpleador');
+              },
+            ),
+
+            const SizedBox(height: 15),
+
+            // ➕ PUBLICAR TRABAJO
             _menuButton(
               icon: Icons.add_circle_outline,
               color: Colors.blue,
@@ -147,7 +176,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
 
             const SizedBox(height: 15),
 
-            // 🔍 BUSCAR PERFILES DESTACADOS (YA CONECTADO)
+            // 🔍 BUSCAR PERFILES
             _menuButton(
               icon: Icons.group_outlined,
               color: Colors.green,
@@ -165,7 +194,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
 
             const SizedBox(height: 15),
 
-            // VER SERVICIOS
+            // 🔎 BUSCAR SERVICIOS
             _menuButton(
               icon: Icons.search,
               color: Colors.purple,
@@ -181,7 +210,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
 
             const SizedBox(height: 15),
 
-            // MI BILLETERA
+            // 💰 MI BILLETERA
             _menuButton(
               icon: Icons.wallet_outlined,
               color: Colors.orange,
@@ -199,7 +228,7 @@ class _HomeEmpleadorScreenState extends State<HomeEmpleadorScreen> {
 
             const SizedBox(height: 15),
 
-            // MIS PUBLICACIONES
+            // 🗂 MIS PUBLICACIONES
             _menuButton(
               icon: Icons.post_add_outlined,
               color: Colors.blue,

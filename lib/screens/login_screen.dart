@@ -284,12 +284,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         );
                       } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => const RegisterEmployerScreen(),
-                          ),
-                        );
+                        // 🔥 NUEVO FLUJO REGISTRO EMPLEADOR (SEGURO)
+                        Navigator.pushNamed(context, '/empleador/tipo');
                       }
                     },
                     child: Text(

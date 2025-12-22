@@ -11,6 +11,7 @@ import 'providers/servicio_provider.dart';
 import 'providers/transactions_provider.dart';
 import 'providers/notificaciones_provider.dart';
 import 'providers/billetera_provider.dart';
+import 'providers/perfil_empleador_provider.dart'; // ✅ NUEVO
 
 // 🔹 Pantallas principales
 import 'screens/seleccion_screen.dart';
@@ -19,6 +20,11 @@ import 'screens/login_screen.dart';
 // 🔹 Registro
 import 'screens/register_trabajador_screen.dart';
 import 'screens/register_employer_screen.dart';
+
+// 🔹 Registro Empleador (nuevo flujo)
+import 'screens/empleador/tipo_empleador_screen.dart';
+import 'screens/empleador/registro_persona_natural_screen.dart';
+import 'screens/empleador/registro_persona_juridica_screen.dart';
 
 // 🔹 Home Empleador
 import 'screens/empleador/home_empleador_screen.dart';
@@ -65,6 +71,9 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => TransactionsProvider()),
         ChangeNotifierProvider(create: (_) => NotificacionesProvider()),
         ChangeNotifierProvider(create: (_) => BilleteraProvider()),
+
+        // ✅ Perfil empleador (nuevo)
+        ChangeNotifierProvider(create: (_) => PerfilEmpleadorProvider()),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -79,7 +88,7 @@ class MyApp extends StatelessWidget {
         initialRoute: '/seleccion',
 
         // ==========================================================
-        // 🔥 SISTEMA DE RUTAS (CORRECTO)
+        // 🔥 SISTEMA DE RUTAS (SE MANTIENE + NUEVAS RUTAS)
         // ==========================================================
         onGenerateRoute: (settings) {
           final args = settings.arguments as Map<String, dynamic>? ?? {};
@@ -113,6 +122,23 @@ class MyApp extends StatelessWidget {
               return MaterialPageRoute(
                 builder: (_) => const SeleccionScreen(),
               );
+
+            // ================= NUEVO REGISTRO EMPLEADOR =================
+            case '/empleador/tipo':
+              return MaterialPageRoute(
+                builder: (_) => const TipoEmpleadorScreen(),
+              );
+
+            case '/empleador/registro-natural':
+              return MaterialPageRoute(
+                builder: (_) => const RegistroPersonaNaturalScreen(),
+              );
+
+            case '/empleador/registro-juridico':
+              return MaterialPageRoute(
+                builder: (_) => const RegistroPersonaJuridicaScreen(),
+              );
+            // ============================================================
 
             case '/homeEmpleador':
               return MaterialPageRoute(
@@ -190,12 +216,12 @@ class MyApp extends StatelessWidget {
                 ),
               );
 
-            // 🔥 AQUÍ ESTABA EL ERROR (YA ARREGLADO)
+            // 🔥 PROGRESO DEL TRABAJO (YA CORRECTO)
             case '/progresoTrabajo':
               return MaterialPageRoute(
                 builder: (_) => ProgresoTrabajoScreen(
                   trabajoId: args['trabajoId'],
-                  trabajadorId: args['trabajadorId'], // ✅ CLAVE
+                  trabajadorId: args['trabajadorId'],
                   nombreTrabajador: args['nombreTrabajador'],
                   tituloTrabajo: args['tituloTrabajo'],
                   rol: args['rol'],

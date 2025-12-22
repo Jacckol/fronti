@@ -29,35 +29,51 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // =====================================================
-  // 🔹 LOGIN
-  // =====================================================
-  Future<String?> login(String email, String password) async {
-    isLoading = true;
-    try {
-      final response = await _authService.login(email, password);
-      if (response == null) return null;
+  /// =====================================================
+// 🔹 LOGIN
+// =====================================================
+Future<String?> login(String email, String password) async {
+  isLoading = true;
+  try {
+    final response = await _authService.login(email, password);
+    if (response == null) return null;
 
-      final user = response['user'] ?? {};
+    final user = response['user'] ?? {};
 
-      _role = response['rol'];
-      _userName = user['nombre'];
-      _userId = user['id'];
-      _token = response['token'];
-      _perfilCompleto = response['perfilCompleto'] ?? false;
+    _role = response['rol'];
+    _userName = user['nombre'];
+    _userId = user['id'];
+    _token = response['token'];
+    _perfilCompleto = response['perfilCompleto'] ?? false;
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', _token ?? '');
-      await prefs.setString('role', _role ?? '');
-      await prefs.setString('userName', _userName ?? '');
-      await prefs.setInt('userId', _userId ?? 0);
-      await prefs.setBool('perfilCompleto', _perfilCompleto);
+    // ✅ GUARDAR IDS
+    final empleador = response['empleador'];
+    final trabajador = response['trabajador'];
 
-      return _role;
-    } finally {
-      isLoading = false;
+    if (empleador != null && empleador['id'] != null) {
+      _empleadorId = empleador['id'];
     }
+    if (trabajador != null && trabajador['id'] != null) {
+      _trabajadorId = trabajador['id'];
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('token', _token ?? '');
+    await prefs.setString('role', _role ?? '');
+    await prefs.setString('userName', _userName ?? '');
+    await prefs.setInt('userId', _userId ?? 0);
+    await prefs.setBool('perfilCompleto', _perfilCompleto);
+
+    // ✅ Guardar ids también (no rompe nada)
+    await prefs.setInt('empleadorId', _empleadorId);
+    await prefs.setInt('trabajadorId', _trabajadorId);
+
+    return _role;
+  } finally {
+    isLoading = false;
   }
+}
+
 
  // =====================================================
 // 🔹 REGISTRO (ÚNICO – COMO ANTES FUNCIONABA)
