@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/mis_servicios_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/postulaciones_provider.dart';
 import 'editar_servicio_screen.dart';
 
 class PublicacionesScreen extends StatefulWidget {
@@ -16,18 +17,21 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
   List<dynamic> servicios = [];
   bool cargando = true;
 
+  // bloquear botones mientras acepta/rechaza
+  final Set<int> _postulacionesCargando = {};
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _cargarDatos();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _cargarDatos());
   }
 
   // ============================================================
   // 🔥 CARGAR SERVICIOS (SOLO < 24 HORAS)
   // ============================================================
   Future<void> _cargarDatos() async {
+    if (mounted) setState(() => cargando = true);
+
     final auth = context.read<AuthProvider>();
     final prov = context.read<MisServiciosProvider>();
 
@@ -44,7 +48,7 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
       }
     }).toList();
 
-    setState(() => cargando = false);
+    if (mounted) setState(() => cargando = false);
   }
 
   @override
@@ -68,26 +72,23 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
                   itemCount: servicios.length,
-                  itemBuilder: (_, i) =>
-                      _cardPublicacion(context, servicios[i]),
+                  itemBuilder: (_, i) => _cardPublicacion(context, servicios[i]),
                 ),
     );
   }
 
   // ============================================================
-  // 🔹 CARD DE PUBLICACIÓN (MEJORADA)
+  // 🔹 CARD DE PUBLICACIÓN
   // ============================================================
-  Widget _cardPublicacion(
-    BuildContext context,
-    Map<String, dynamic> servicio,
-  ) {
-    final id = servicio["id"];
-    final titulo = servicio["titulo"];
-    final categoria = servicio["categoria"];
-    final ubicacion = servicio["ubicacion"];
+  Widget _cardPublicacion(BuildContext context, Map<String, dynamic> servicio) {
+    final int servicioId = _toInt(servicio["id"]);
+    final String titulo = (servicio["titulo"] ?? "").toString();
+    final String categoria = (servicio["categoria"] ?? "").toString();
+    final String ubicacion = (servicio["ubicacion"] ?? "").toString();
     final presupuesto = servicio["presupuesto"];
-    final descripcion = servicio["descripcion"];
-    final fecha = servicio["createdAt"] ?? "";
+    final String descripcion = (servicio["descripcion"] ?? "").toString();
+    final String fecha = (servicio["createdAt"] ?? "").toString();
+    final List postulaciones = (servicio["postulaciones"] ?? []) as List;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -153,15 +154,11 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
           // ---------------- UBICACIÓN ----------------
           Row(
             children: [
-              const Icon(Icons.location_on,
-                  size: 16, color: Colors.grey),
+              const Icon(Icons.location_on, size: 16, color: Colors.grey),
               const SizedBox(width: 4),
               Text(
                 ubicacion,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Colors.grey,
-                ),
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
@@ -185,16 +182,17 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
 
           const SizedBox(height: 16),
 
-          // ---------------- ACCIONES ----------------
-          Row(
+          // =================== 🔥 ACCIONES ===================
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
             children: [
               OutlinedButton.icon(
                 onPressed: () async {
                   final actualizado = await Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          EditarServicioScreen(servicio: servicio),
+                      builder: (_) => EditarServicioScreen(servicio: servicio),
                     ),
                   );
                   if (actualizado == true) _cargarDatos();
@@ -202,24 +200,31 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                 icon: const Icon(Icons.edit, size: 18),
                 label: const Text("Editar"),
               ),
-              const SizedBox(width: 10),
+
+              ElevatedButton.icon(
+                onPressed: () => _verPostulaciones(
+                  context: context,
+                  servicioId: servicioId,
+                  postulaciones: postulaciones,
+                ),
+                icon: const Icon(Icons.visibility, size: 18),
+                label: Text("Postulaciones (${postulaciones.length})"),
+              ),
+
               ElevatedButton.icon(
                 onPressed: () async {
                   final confirmar = await showDialog<bool>(
                     context: context,
                     builder: (_) => AlertDialog(
                       title: const Text("Eliminar servicio"),
-                      content: const Text(
-                          "¿Seguro deseas eliminar esta publicación?"),
+                      content: const Text("¿Seguro deseas eliminar esta publicación?"),
                       actions: [
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, false),
+                          onPressed: () => Navigator.pop(context, false),
                           child: const Text("Cancelar"),
                         ),
                         TextButton(
-                          onPressed: () =>
-                              Navigator.pop(context, true),
+                          onPressed: () => Navigator.pop(context, true),
                           child: const Text("Eliminar"),
                         ),
                       ],
@@ -227,24 +232,21 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                   );
 
                   if (confirmar == true) {
-                    final prov =
-                        context.read<MisServiciosProvider>();
-                    final ok =
-                        await prov.eliminarServicio(id);
-                    if (ok) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text("Servicio eliminado"),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                      _cargarDatos();
-                    }
+                    final prov = context.read<MisServiciosProvider>();
+                    final ok = await prov.eliminarServicio(servicioId);
+                    if (!mounted) return;
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(ok ? "Servicio eliminado" : "No se pudo eliminar ❌"),
+                        backgroundColor: ok ? Colors.red : Colors.black,
+                      ),
+                    );
+
+                    if (ok) _cargarDatos();
                   }
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.red,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 icon: const Icon(Icons.delete, size: 18),
                 label: const Text("Eliminar"),
               ),
@@ -256,7 +258,215 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
   }
 
   // ============================================================
-  // BADGE CORREGIDO (SIN ERRORES)
+  // 🔥 MODAL POSTULACIONES
+  // ============================================================
+  void _verPostulaciones({
+    required BuildContext context,
+    required int servicioId,
+    required List postulaciones,
+  }) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.70,
+          minChildSize: 0.35,
+          maxChildSize: 0.92,
+          builder: (context2, scrollCtrl) {
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+              child: Column(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      "Postulaciones",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  if (postulaciones.isEmpty)
+                    const Expanded(
+                      child: Center(child: Text("Aún no hay postulaciones")),
+                    )
+                  else
+                    Expanded(
+                      child: ListView.builder(
+                        controller: scrollCtrl,
+                        itemCount: postulaciones.length,
+                        itemBuilder: (_, i) {
+                          final p = postulaciones[i] as Map<String, dynamic>;
+                          return _cardPostulacion(
+                            p,
+                            onEstado: (estado) async {
+                              final int postId = _toInt(p["id"]);
+                              if (postId == 0) return;
+
+                              await _cambiarEstado(postId: postId, estado: estado);
+
+                              if (!mounted) return;
+                              Navigator.pop(context2); // cierro el modal
+                              _cargarDatos(); // recargo servicios + postulaciones
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ============================================================
+  // ✅ Cambiar estado postulación (aceptar/rechazar)
+  // ============================================================
+  Future<void> _cambiarEstado({
+    required int postId,
+    required String estado,
+  }) async {
+    if (_postulacionesCargando.contains(postId)) return;
+
+    setState(() => _postulacionesCargando.add(postId));
+
+    try {
+      final postProv = context.read<PostulacionesProvider>();
+
+      final ok = await postProv.cambiarEstadoPostulacion(
+        postulacionId: postId,
+        estado: estado, // "aceptado" / "rechazado"
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(ok ? "Postulación $estado ✅" : "No se pudo actualizar ❌"),
+          backgroundColor: ok ? Colors.green : Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _postulacionesCargando.remove(postId));
+    }
+  }
+
+  // ============================================================
+  // 🔹 CARD POSTULACIÓN
+  // ============================================================
+  Widget _cardPostulacion(
+    Map<String, dynamic> p, {
+    required Future<void> Function(String estado) onEstado,
+  }) {
+    final int postId = _toInt(p["id"]);
+    final String estado = (p["estado"] ?? "pendiente").toString();
+    final bool loading = _postulacionesCargando.contains(postId);
+
+    final postulante = p["postulante"] ?? {};
+    final String nombre = (postulante["nombre"] ?? postulante["email"] ?? p["empresa"] ?? "Usuario").toString();
+    final String mensaje = (p["mensaje"] ?? "Sin mensaje").toString();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  nombre,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                ),
+              ),
+              _estadoChip(estado),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(mensaje),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 8,
+            children: [
+              ElevatedButton(
+                onPressed: (loading || estado == "aceptado") ? null : () => onEstado("aceptado"),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: loading
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Aceptar"),
+              ),
+              ElevatedButton(
+                onPressed: (loading || estado == "rechazado") ? null : () => onEstado("rechazado"),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: loading
+                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Text("Rechazar"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _estadoChip(String estado) {
+    Color bg;
+    Color tx;
+
+    switch (estado) {
+      case "aceptado":
+        bg = const Color(0xFFDCFCE7);
+        tx = const Color(0xFF166534);
+        break;
+      case "rechazado":
+        bg = const Color(0xFFFEE2E2);
+        tx = const Color(0xFF991B1B);
+        break;
+      default:
+        bg = const Color(0xFFFFF7E0);
+        tx = const Color(0xFF92400E);
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        estado,
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: tx),
+      ),
+    );
+  }
+
+  // ============================================================
+  // BADGE
   // ============================================================
   Widget _badge(
     String label, {
@@ -271,12 +481,15 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w500,
-          color: textColor,
-        ),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textColor),
       ),
     );
+  }
+
+  // helpers
+  int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
   }
 }

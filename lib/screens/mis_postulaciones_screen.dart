@@ -19,7 +19,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   FiltroPostulacion _filtro = FiltroPostulacion.todas;
 
   // ======================================================
-  // 🔥 CARGAR POSTULACIONES DEL USUARIO LOGUEADO
+  // 🔥 CARGAR POSTULACIONES
   // ======================================================
   @override
   void initState() {
@@ -31,7 +31,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
       final auth = context.read<AuthProvider>();
 
       if (auth.userId != null) {
-        postulacionesProv.cargarDesdeBackend(auth.userId!);
+        postulacionesProv.cargarPostulaciones(auth.userId!);
       }
     });
   }
@@ -41,7 +41,6 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
     final prov = context.watch<PostulacionesProvider>();
 
     List<Postulacion> lista;
-
     switch (_filtro) {
       case FiltroPostulacion.pendientes:
         lista = prov.pendientes;
@@ -66,42 +65,26 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         children: [
           const SizedBox(height: 16),
 
-          // ======================================================
-          // CONTADORES
-          // ======================================================
+          // ================= CONTADORES =================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                _contadorCard(
-                  label: 'Pendientes',
-                  color: const Color(0xFFFFF7E0),
-                  textColor: const Color(0xFF92400E),
-                  cantidad: prov.totalPendientes,
-                ),
+                _contador('Pendientes', prov.totalPendientes,
+                    const Color(0xFFFFF7E0), const Color(0xFF92400E)),
                 const SizedBox(width: 8),
-                _contadorCard(
-                  label: 'Aceptadas',
-                  color: const Color(0xFFE0FBEA),
-                  textColor: const Color(0xFF166534),
-                  cantidad: prov.totalAceptadas,
-                ),
+                _contador('Aceptadas', prov.totalAceptadas,
+                    const Color(0xFFE0FBEA), const Color(0xFF166534)),
                 const SizedBox(width: 8),
-                _contadorCard(
-                  label: 'Rechazadas',
-                  color: const Color(0xFFFEE2E2),
-                  textColor: const Color(0xFFB91C1C),
-                  cantidad: prov.totalRechazadas,
-                ),
+                _contador('Rechazadas', prov.totalRechazadas,
+                    const Color(0xFFFEE2E2), const Color(0xFFB91C1C)),
               ],
             ),
           ),
 
           const SizedBox(height: 16),
 
-          // ======================================================
-          // FILTROS
-          // ======================================================
+          // ================= FILTROS =================
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
@@ -116,9 +99,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
 
           const SizedBox(height: 8),
 
-          // ======================================================
-          // LISTA
-          // ======================================================
+          // ================= LISTA =================
           Expanded(
             child: lista.isEmpty
                 ? const Center(
@@ -130,10 +111,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.all(16),
                     itemCount: lista.length,
-                    itemBuilder: (_, index) {
-                      final p = lista[index];
-                      return _cardPostulacion(p);
-                    },
+                    itemBuilder: (_, i) => _cardPostulacion(lista[i]),
                   ),
           ),
         ],
@@ -144,34 +122,23 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   // ======================================================
   // CONTADOR
   // ======================================================
-  Widget _contadorCard({
-    required String label,
-    required int cantidad,
-    required Color color,
-    required Color textColor,
-  }) {
+  Widget _contador(
+      String label, int cantidad, Color bg, Color textColor) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(12),
-        ),
+        decoration:
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
         child: Column(
           children: [
             Text(
               cantidad.toString(),
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: textColor,
-              ),
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: textColor),
             ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, color: textColor),
-            ),
+            Text(label, style: TextStyle(fontSize: 12, color: textColor)),
           ],
         ),
       ),
@@ -182,7 +149,7 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   // FILTRO CHIP
   // ======================================================
   Widget _filtroChip(String texto, FiltroPostulacion value) {
-    final bool activo = _filtro == value;
+    final activo = _filtro == value;
 
     return Expanded(
       child: GestureDetector(
@@ -199,11 +166,9 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
             child: Text(
               texto,
               style: TextStyle(
-                fontSize: 12,
-                color: activo
-                    ? Colors.white
-                    : const Color(0xFF6B7280),
-              ),
+                  fontSize: 12,
+                  color:
+                      activo ? Colors.white : const Color(0xFF6B7280)),
             ),
           ),
         ),
@@ -212,29 +177,28 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
   }
 
   // ======================================================
-  // TARJETA POSTULACIÓN
+  // CARD POSTULACIÓN (CON ACEPTAR / RECHAZAR)
   // ======================================================
   Widget _cardPostulacion(Postulacion p) {
-    Color etiquetaColor;
-    Color etiquetaTexto;
-    String etiquetaTextoStr;
+    Color bg;
+    Color txt;
+    String estadoTxt;
 
     switch (p.estado) {
       case EstadoPostulacion.aceptada:
-        etiquetaColor = const Color(0xFFE0FBEA);
-        etiquetaTexto = const Color(0xFF166534);
-        etiquetaTextoStr = 'Aceptada';
+        bg = const Color(0xFFE0FBEA);
+        txt = const Color(0xFF166534);
+        estadoTxt = 'Aceptada';
         break;
       case EstadoPostulacion.rechazada:
-        etiquetaColor = const Color(0xFFFEE2E2);
-        etiquetaTexto = const Color(0xFFB91C1C);
-        etiquetaTextoStr = 'Rechazada';
+        bg = const Color(0xFFFEE2E2);
+        txt = const Color(0xFFB91C1C);
+        estadoTxt = 'Rechazada';
         break;
       default:
-        etiquetaColor = const Color(0xFFFFF7E0);
-        etiquetaTexto = const Color(0xFF92400E);
-        etiquetaTextoStr = 'Pendiente';
-        break;
+        bg = const Color(0xFFFFF7E0);
+        txt = const Color(0xFF92400E);
+        estadoTxt = 'Pendiente';
     }
 
     return Container(
@@ -245,122 +209,86 @@ class _MisPostulacionesScreenState extends State<MisPostulacionesScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 3)),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  p.titulo,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: etiquetaColor,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  etiquetaTextoStr,
-                  style: TextStyle(
-                    color: etiquetaTexto,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          Row(
-            children: [
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEDE9FE),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  p.categoria,
-                  style: const TextStyle(
-                    color: Color(0xFF7C3AED),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Empleador: ${p.empleador}',
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(
+            child: Text(p.titulo,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style:
-                    const TextStyle(fontSize: 11, color: Colors.grey),
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration:
+                BoxDecoration(color: bg, borderRadius: BorderRadius.circular(8)),
+            child: Text(estadoTxt,
+                style: TextStyle(
+                    color: txt, fontSize: 11, fontWeight: FontWeight.w600)),
+          )
+        ]),
+
+        const SizedBox(height: 10),
+
+        Text(p.categoria,
+            style: const TextStyle(
+                color: Color(0xFF7C3AED), fontSize: 12)),
+
+        const SizedBox(height: 14),
+
+        Row(mainAxisAlignment: MainAxisAlignment.end, children: [
+          TextButton(
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) =>
+                    PostulacionDetalleScreen(postulacion: p),
               ),
-            ],
+            ),
+            child: const Text('Ver detalle'),
           ),
 
-          const SizedBox(height: 12),
+          if (p.estado == EstadoPostulacion.pendiente)
+            TextButton(
+              onPressed: () {
+                context
+                    .read<PostulacionesProvider>()
+                    .actualizarEstadoLocal(
+                        p.id, EstadoPostulacion.aceptada);
+              },
+              child:
+                  const Text('Aceptar', style: TextStyle(color: Colors.green)),
+            ),
 
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          PostulacionDetalleScreen(postulacion: p),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Ver Detalles',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ),
-              const SizedBox(width: 12),
-              TextButton(
-                onPressed: () {
-                  context
-                      .read<PostulacionesProvider>()
-                      .eliminarPostulacionLocal(p.id);
+          if (p.estado == EstadoPostulacion.pendiente)
+            TextButton(
+              onPressed: () {
+                context
+                    .read<PostulacionesProvider>()
+                    .actualizarEstadoLocal(
+                        p.id, EstadoPostulacion.rechazada);
+              },
+              child:
+                  const Text('Rechazar', style: TextStyle(color: Colors.red)),
+            ),
 
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text("Postulación eliminada"),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Eliminar',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.red,
-                  ),
-                ),
-              ),
-            ],
+          TextButton(
+            onPressed: () {
+              context
+                  .read<PostulacionesProvider>()
+                  .eliminarPostulacionLocal(p.id);
+            },
+            child:
+                const Text('Eliminar', style: TextStyle(color: Colors.red)),
           ),
-        ],
-      ),
+        ])
+      ]),
     );
   }
 }

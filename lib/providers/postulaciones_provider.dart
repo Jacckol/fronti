@@ -7,8 +7,19 @@ import 'package:http/http.dart' as http;
 // ======================================================
 enum EstadoPostulacion { pendiente, aceptada, rechazada }
 
+EstadoPostulacion estadoFromString(String estado) {
+  switch (estado) {
+    case "aceptado":
+      return EstadoPostulacion.aceptada;
+    case "rechazado":
+      return EstadoPostulacion.rechazada;
+    default:
+      return EstadoPostulacion.pendiente;
+  }
+}
+
 // ======================================================
-// MODELO POSTULACIÓN
+// MODELO POSTULACIÓN (para TRABAJOS - no rompe tu app)
 // ======================================================
 class Postulacion {
   final int id;
@@ -38,32 +49,28 @@ class Postulacion {
   });
 
   factory Postulacion.fromJson(Map<String, dynamic> json) {
-    final trabajo = json["trabajo"] ?? {};
+    // ✅ SOLO AUMENTO: soporta "trabajo" o "Trabajo"
+    final trabajo = (json["trabajo"] ?? json["Trabajo"] ?? {}) as Map;
 
     return Postulacion(
-      id: json["id"],
-      trabajoId: trabajo["id"] ?? 0,
-      titulo: trabajo["titulo"] ?? "Sin título",
-      categoria: trabajo["categoria"] ?? "General",
+      id: _toInt(json["id"]),
+      trabajoId: _toInt(trabajo["id"]),
+      titulo: (trabajo["titulo"] ?? "Sin título").toString(),
+      categoria: (trabajo["categoria"] ?? "General").toString(),
       empleador: "Empleador",
-      ubicacion: trabajo["ubicacion"] ?? "",
+      ubicacion: (trabajo["ubicacion"] ?? "").toString(),
       presupuesto: 0,
       duracion: "",
-      mensaje: json["mensaje"] ?? "",
-      fecha: DateTime.parse(json["createdAt"]),
-      estado: _estadoFromString(json["estado"]),
+      mensaje: (json["mensaje"] ?? "").toString(),
+      fecha: DateTime.tryParse((json["createdAt"] ?? "").toString()) ?? DateTime.now(),
+      estado: estadoFromString((json["estado"] ?? "pendiente").toString()),
     );
   }
 
-  static EstadoPostulacion _estadoFromString(String estado) {
-    switch (estado) {
-      case "aceptado":
-        return EstadoPostulacion.aceptada;
-      case "rechazado":
-        return EstadoPostulacion.rechazada;
-      default:
-        return EstadoPostulacion.pendiente;
-    }
+  static int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
   }
 }
 
@@ -94,21 +101,38 @@ class PostulacionesProvider extends ChangeNotifier {
   int get totalRechazadas => rechazadas.length;
 
   // ======================================================
-  // 🔥 CARGAR POSTULACIONES DESDE BACKEND (FIX REAL)
+  // 🔥 CARGAR POSTULACIONES (TRABAJOS) POR USUARIO (TRABAJADOR)
+  // GET /api/postulaciones/usuario/:userId
   // ======================================================
   Future<void> cargarPostulaciones(int userId) async {
     try {
-      final url =
-          Uri.parse("$baseUrl/api/postulaciones/usuario/$userId");
-
+      final url = Uri.parse("$baseUrl/api/postulaciones/usuario/$userId");
       final resp = await http.get(url);
+
+      debugPrint("📥 GET cargarPostulaciones => $url");
+      debugPrint("📥 status=${resp.statusCode} body=${resp.body}");
 
       if (resp.statusCode == 200) {
         final decoded = jsonDecode(resp.body);
-        final List lista = decoded["postulaciones"] ?? [];
 
-        _postulaciones =
-            lista.map<Postulacion>((p) => Postulacion.fromJson(p)).toList();
+        // ✅ SOLO AUMENTO:
+        // soporta:
+        // A) backend devuelve lista directa: [ ... ]
+        // B) backend devuelve objeto: { "postulaciones": [ ... ] }
+        List lista = [];
+
+        if (decoded is List) {
+          lista = decoded;
+        } else if (decoded is Map && decoded["postulaciones"] is List) {
+          lista = decoded["postulaciones"];
+        } else if (decoded is Map && decoded["data"] is List) {
+          // por si tu backend usa "data"
+          lista = decoded["data"];
+        }
+
+        _postulaciones = lista
+            .map<Postulacion>((p) => Postulacion.fromJson(p as Map<String, dynamic>))
+            .toList();
       } else {
         _postulaciones = [];
       }
@@ -120,22 +144,21 @@ class PostulacionesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ======================================================
-  // 🔥 ALIAS PARA TUS PANTALLAS
-  // ======================================================
+  // alias
   Future<void> cargarDesdeBackend(int userId) async {
     await cargarPostulaciones(userId);
   }
 
   // ======================================================
-  // CREAR POSTULACIÓN
+  // ✅ CREAR POSTULACIÓN A TRABAJO (TRABAJADOR → EMPLEADOR)
+  // POST /api/postulaciones
   // ======================================================
   Future<bool> crearPostulacion({
     required int trabajoId,
     required int userId,
     required String mensaje,
 
-    // Campos solo para UI inmediata
+    // Campos UI inmediata (no afectan backend)
     required String titulo,
     required String categoria,
     required String empleador,
@@ -175,15 +198,89 @@ class PostulacionesProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       }
-    } catch (e) {
-      debugPrint("❌ ERROR crearPostulacion: $e");
-    }
 
-    return false;
+      debugPrint("❌ crearPostulacion(trabajo) status: ${resp.statusCode} body: ${resp.body}");
+      return false;
+    } catch (e) {
+      debugPrint("❌ ERROR crearPostulacion(trabajo): $e");
+      return false;
+    }
   }
 
   // ======================================================
-  // ACTUALIZAR ESTADO LOCAL
+  // ✅ CREAR POSTULACIÓN A SERVICIO (EMPLEADOR → TRABAJADOR)
+  // POST /api/servicios/:servicioId/postulaciones
+  // body: { userId, mensaje }
+  // ======================================================
+  Future<bool> crearPostulacionServicio({
+    required int servicioId,
+    required int userId,
+    required String mensaje,
+    String? empresa,
+  }) async {
+    try {
+      if (servicioId <= 0) {
+        debugPrint("❌ crearPostulacionServicio: servicioId inválido => $servicioId");
+        return false;
+      }
+
+      final url = Uri.parse("$baseUrl/api/servicios/$servicioId/postulaciones");
+
+      debugPrint("📤 POST crearPostulacionServicio => $url");
+      debugPrint("📤 servicioId=$servicioId userId=$userId mensaje_len=${mensaje.length}");
+
+      final resp = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "userId": userId,
+          "mensaje": mensaje,
+        }),
+      );
+
+      debugPrint("📥 crearPostulacionServicio status: ${resp.statusCode} body: ${resp.body}");
+
+      if (resp.statusCode == 201) {
+        return true;
+      }
+
+      return false;
+    } catch (e) {
+      debugPrint("❌ ERROR crearPostulacionServicio: $e");
+      return false;
+    }
+  }
+
+  // ======================================================
+  // ✅ CAMBIAR ESTADO POSTULACIÓN DE SERVICIO
+  // PUT /api/servicios/postulaciones/:id/estado
+  // body: { estado: "aceptado" | "rechazado" }
+  // ======================================================
+  Future<bool> cambiarEstadoPostulacion({
+    required int postulacionId,
+    required String estado,
+  }) async {
+    try {
+      final url = Uri.parse("$baseUrl/api/servicios/postulaciones/$postulacionId/estado");
+
+      final resp = await http.put(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"estado": estado}),
+      );
+
+      if (resp.statusCode == 200) return true;
+
+      debugPrint("❌ cambiarEstadoPostulacion status: ${resp.statusCode} body: ${resp.body}");
+      return false;
+    } catch (e) {
+      debugPrint("❌ ERROR cambiarEstadoPostulacion: $e");
+      return false;
+    }
+  }
+
+  // ======================================================
+  // UTILIDADES LOCALES
   // ======================================================
   void actualizarEstadoLocal(int id, EstadoPostulacion nuevoEstado) {
     final index = _postulaciones.indexWhere((p) => p.id == id);
@@ -193,17 +290,11 @@ class PostulacionesProvider extends ChangeNotifier {
     }
   }
 
-  // ======================================================
-  // ELIMINAR LOCAL
-  // ======================================================
   void eliminarPostulacionLocal(int id) {
     _postulaciones.removeWhere((p) => p.id == id);
     notifyListeners();
   }
 
-  // ======================================================
-  // LIMPIAR
-  // ======================================================
   void limpiar() {
     _postulaciones.clear();
     notifyListeners();

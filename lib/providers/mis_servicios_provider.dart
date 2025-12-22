@@ -8,24 +8,30 @@ class MisServiciosProvider extends ChangeNotifier {
   List<dynamic> misServicios = [];
 
   // ======================================================
-  // 🔹 Cargar servicios publicados por un usuario
+  // ✅ Cargar MIS SERVICIOS + POSTULACIONES (BACKEND REAL)
+  // GET /api/servicios/mis/:userId
   // ======================================================
   Future<List<dynamic>> cargarMisServicios(int userId) async {
     try {
-      final url = Uri.parse("$baseUrl?userId=$userId");
-
+      final url = Uri.parse("$baseUrl/mis/$userId");
       final resp = await http.get(url);
 
+      debugPrint("📩 cargarMisServicios status: ${resp.statusCode}");
+      debugPrint("📩 body: ${resp.body}");
+
       if (resp.statusCode == 200) {
-        misServicios = jsonDecode(resp.body);
+        final decoded = jsonDecode(resp.body);
+
+        // Debe ser una lista
+        misServicios = (decoded is List) ? decoded : [];
         notifyListeners();
         return misServicios;
       } else {
-        print("❌ Error backend: ${resp.statusCode}");
+        debugPrint("❌ Error backend: ${resp.statusCode}");
         return [];
       }
     } catch (e) {
-      print("❌ Error cargarMisServicios: $e");
+      debugPrint("❌ Error cargarMisServicios: $e");
       return [];
     }
   }
@@ -56,15 +62,18 @@ class MisServiciosProvider extends ChangeNotifier {
         }),
       );
 
-      print("📌 RESPUESTA EDITAR: ${resp.body}");
+      debugPrint("📌 RESPUESTA EDITAR status: ${resp.statusCode} body: ${resp.body}");
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
 
-        // actualizar lista local
+        // tu backend puede devolver {ok:true, servicio:{...}}
+        final actualizado =
+            (data is Map && data["servicio"] != null) ? data["servicio"] : data;
+
         final index = misServicios.indexWhere((s) => s["id"] == id);
         if (index != -1) {
-          misServicios[index] = data;
+          misServicios[index] = actualizado;
           notifyListeners();
         }
 
@@ -73,7 +82,7 @@ class MisServiciosProvider extends ChangeNotifier {
 
       return false;
     } catch (e) {
-      print("❌ Error editar servicio: $e");
+      debugPrint("❌ Error editar servicio: $e");
       return false;
     }
   }
@@ -84,8 +93,9 @@ class MisServiciosProvider extends ChangeNotifier {
   Future<bool> eliminarServicio(int id) async {
     try {
       final url = Uri.parse("$baseUrl/$id");
-
       final resp = await http.delete(url);
+
+      debugPrint("📌 eliminarServicio status: ${resp.statusCode} body: ${resp.body}");
 
       if (resp.statusCode == 200) {
         misServicios.removeWhere((s) => s["id"] == id);
@@ -95,7 +105,7 @@ class MisServiciosProvider extends ChangeNotifier {
 
       return false;
     } catch (e) {
-      print("❌ Error eliminar servicio: $e");
+      debugPrint("❌ Error eliminar servicio: $e");
       return false;
     }
   }

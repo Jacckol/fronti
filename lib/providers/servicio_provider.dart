@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 class ServicioProvider extends ChangeNotifier {
-  // ⭐ Conexión desde emulador hacia backend local
-  final String _baseUrl = "http://10.0.2.2:4000/api/servicios";
+  // ⭐ emulador -> backend
+  final String baseUrl = "http://10.0.2.2:4000/api/servicios";
 
   // ======================================================
-  // 🔹 PUBLICAR SERVICIO (POST)
+  // 🔹 PUBLICAR SERVICIO (POST /api/servicios)
   // ======================================================
   Future<bool> publicarServicio({
     required String titulo,
@@ -15,16 +15,14 @@ class ServicioProvider extends ChangeNotifier {
     required String descripcion,
     required String ubicacion,
     required double presupuesto,
-    required int userId, // ⭐ ahora dinámico
+    required int userId,
   }) async {
     try {
-      final url = Uri.parse(_baseUrl);
+      final url = Uri.parse(baseUrl);
 
       final resp = await http.post(
         url,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "titulo": titulo,
           "categoria": categoria,
@@ -35,18 +33,33 @@ class ServicioProvider extends ChangeNotifier {
         }),
       );
 
-      print("📩 RESPUESTA BACKEND:");
-      print(resp.body);
+      debugPrint("📩 publicarServicio status: ${resp.statusCode} body: ${resp.body}");
 
-      if (resp.statusCode == 200 || resp.statusCode == 201) {
-        return true;
-      } else {
-        print("❌ Error: código ${resp.statusCode}");
-        return false;
-      }
+      return resp.statusCode == 200 || resp.statusCode == 201;
     } catch (e) {
-      print("❌ Error publicando servicio: $e");
+      debugPrint("❌ Error publicando servicio: $e");
       return false;
+    }
+  }
+
+  // ======================================================
+  // 🔹 (OPCIONAL) LISTAR FEED GENERAL (GET /api/servicios)
+  // Si no lo usas, puedes borrar este método.
+  // ======================================================
+  Future<List<dynamic>> listarServiciosFeed() async {
+    try {
+      final url = Uri.parse(baseUrl);
+      final resp = await http.get(url);
+
+      debugPrint("📩 listarServiciosFeed status: ${resp.statusCode}");
+
+      if (resp.statusCode == 200) {
+        return jsonDecode(resp.body) as List<dynamic>;
+      }
+      return [];
+    } catch (e) {
+      debugPrint("❌ Error listarServiciosFeed: $e");
+      return [];
     }
   }
 }

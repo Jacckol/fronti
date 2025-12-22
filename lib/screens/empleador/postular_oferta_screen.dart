@@ -1,3 +1,4 @@
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -5,7 +6,9 @@ import '../../providers/postulaciones_provider.dart';
 import '../../providers/auth_provider.dart';
 
 class PostularOfertaScreen extends StatefulWidget {
+  // ✅ ES TRABAJO ID (NO SERVICIO)
   final int trabajoId;
+
   final String titulo;
   final String categoria;
   final String empresa;
@@ -30,11 +33,23 @@ class PostularOfertaScreen extends StatefulWidget {
 
 class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
   final mensajeCtrl = TextEditingController();
+  bool enviando = false;
 
   @override
   void dispose() {
     mensajeCtrl.dispose();
     super.dispose();
+  }
+
+  double _parseSalario(String s) {
+    // soporta: "$12", "12", "12.50", "12,50"
+    final limpio = s
+        .replaceAll("\$", "")
+        .replaceAll("USD", "")
+        .replaceAll("usd", "")
+        .replaceAll(",", ".")
+        .trim();
+    return double.tryParse(limpio) ?? 0.0;
   }
 
   @override
@@ -53,13 +68,11 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
         ),
         iconTheme: const IconThemeData(color: Colors.black),
       ),
-
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-
             // TÍTULO
             Text(
               widget.titulo,
@@ -123,9 +136,11 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
               children: [
                 const Icon(Icons.location_on_outlined, size: 20),
                 const SizedBox(width: 6),
-                Text(
-                  widget.ubicacion,
-                  style: const TextStyle(fontSize: 14),
+                Expanded(
+                  child: Text(
+                    widget.ubicacion,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 ),
               ],
             ),
@@ -172,45 +187,69 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: () async {
-                  final mensaje = mensajeCtrl.text.trim().isEmpty
-                      ? "Estoy interesado en este trabajo."
-                      : mensajeCtrl.text.trim();
+                onPressed: enviando
+                    ? null
+                    : () async {
+                        final userId = auth.userId;
 
-                  // 🚀 NUEVO: AHORA ENVÍAMOS TODOS LOS CAMPOS REQUERIDOS
-                  final ok = await postProv.crearPostulacion(
-                    trabajoId: widget.trabajoId,
-                    userId: auth.userId!,
-                    mensaje: mensaje,
+                        if (userId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Debes iniciar sesión primero"),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
 
-                    // 🔥 CAMPOS OBLIGATORIOS
-                    titulo: widget.titulo,
-                    categoria: widget.categoria,
-                    empleador: widget.empresa,
-                    ubicacion: widget.ubicacion,
-                    presupuesto: double.tryParse(widget.salario) ?? 0,
-                    duracion: "No especificada",
-                  );
+                        final mensaje = mensajeCtrl.text.trim().isEmpty
+                            ? "Estoy interesado en este trabajo."
+                            : mensajeCtrl.text.trim();
 
-                  if (ok) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                            "Postulación enviada al trabajo \"${widget.titulo}\""),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
+                        setState(() => enviando = true);
 
-                    Navigator.pop(context);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Error al enviar la postulación ❌"),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
-                  }
-                },
+                        try {
+                          // ✅ AQUÍ ESTÁ EL FIX: POSTULAR A TRABAJO (NO SERVICIO)
+                          final ok = await postProv.crearPostulacion(
+                            trabajoId: widget.trabajoId,
+                            userId: userId,
+                            mensaje: mensaje,
+
+                            // UI inmediata (no afecta backend)
+                            titulo: widget.titulo,
+                            categoria: widget.categoria,
+                            empleador: widget.empresa,
+                            ubicacion: widget.ubicacion,
+                            presupuesto: _parseSalario(widget.salario),
+                            duracion: "",
+                          );
+
+                          if (!mounted) return;
+
+                          if (ok) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  "Postulación enviada a \"${widget.titulo}\"",
+                                ),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+
+                            // ✅ devuelve true para recargar lista si quieres
+                            Navigator.pop(context, true);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Error al enviar la postulación ❌"),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        } finally {
+                          if (mounted) setState(() => enviando = false);
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF111827),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -218,10 +257,16 @@ class _PostularOfertaScreenState extends State<PostularOfertaScreen> {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text(
-                  "Postular Ahora",
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
+                child: enviando
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text(
+                        "Postular Ahora",
+                        style: TextStyle(color: Colors.white, fontSize: 16),
+                      ),
               ),
             ),
           ],

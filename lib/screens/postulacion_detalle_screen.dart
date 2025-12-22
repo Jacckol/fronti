@@ -10,7 +10,14 @@ import '../providers/notificaciones_provider.dart';
 class PostulacionDetalleScreen extends StatefulWidget {
   final Postulacion postulacion;
 
-  const PostulacionDetalleScreen({super.key, required this.postulacion});
+  /// ✅ opcional (solo si de verdad lo usas para servicios)
+  final int? servicioId;
+
+  const PostulacionDetalleScreen({
+    super.key,
+    required this.postulacion,
+    this.servicioId,
+  });
 
   @override
   State<PostulacionDetalleScreen> createState() =>
@@ -40,20 +47,35 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
     final auth = context.read<AuthProvider>();
 
     try {
-      final url = Uri.parse(
-          "http://10.0.2.2:4000/api/postulaciones/verificar/${widget.postulacion.trabajoId}/${auth.userId}");
+      // ✅ Si es TRABAJO => verificamos como antes
+      // (si trabajoId es > 0, siempre es trabajo)
+      if (widget.postulacion.trabajoId > 0) {
+        final url = Uri.parse(
+          "http://10.0.2.2:4000/api/postulaciones/verificar/${widget.postulacion.trabajoId}/${auth.userId}",
+        );
 
-      final resp = await http.get(url);
+        final resp = await http.get(url);
 
-      if (resp.statusCode == 200) {
-        final data = jsonDecode(resp.body);
-        yaPostuloBackend = data["postulo"] == true;
+        if (resp.statusCode == 200) {
+          final data = jsonDecode(resp.body);
+          yaPostuloBackend = data["postulo"] == true;
+        }
+
+        setState(() => cargando = false);
+        return;
       }
+
+      // ✅ Si NO es trabajo y es servicio:
+      // tu backend NO tiene endpoint verificar servicio (según lo que pegaste),
+      // así que no verificamos en backend.
+      setState(() {
+        yaPostuloBackend = false;
+        cargando = false;
+      });
     } catch (e) {
       print("❌ Error verificando postulación: $e");
+      setState(() => cargando = false);
     }
-
-    setState(() => cargando = false);
   }
 
   @override
@@ -62,22 +84,32 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
     final postProv = context.read<PostulacionesProvider>();
     final notiProv = context.read<NotificacionesProvider>();
 
+    // ✅ REGLA DE ORO:
+    // si hay trabajoId válido => ES TRABAJO sí o sí (aunque venga servicioId)
+    final bool esTrabajo = widget.postulacion.trabajoId > 0;
+    final bool esServicio = !esTrabajo && widget.servicioId != null;
+
+    // DEBUG (déjalo unos minutos para confirmar)
+    debugPrint(
+      "🧪 DetalleScreen => trabajoId=${widget.postulacion.trabajoId} servicioId=${widget.servicioId} => esTrabajo=$esTrabajo esServicio=$esServicio",
+    );
+
     // -----------------------------
-    // CAMPOS SEGUROS (evita null)
+    // CAMPOS SEGUROS
     // -----------------------------
-    final titulo = (widget.postulacion.titulo).isNotEmpty
+    final titulo = widget.postulacion.titulo.isNotEmpty
         ? widget.postulacion.titulo
         : "Sin título";
 
-    final categoria = (widget.postulacion.categoria).isNotEmpty
+    final categoria = widget.postulacion.categoria.isNotEmpty
         ? widget.postulacion.categoria
         : "Sin categoría";
 
-    final empleador = (widget.postulacion.empleador).isNotEmpty
+    final empleador = widget.postulacion.empleador.isNotEmpty
         ? widget.postulacion.empleador
         : "Desconocido";
 
-    final ubicacion = (widget.postulacion.ubicacion).isNotEmpty
+    final ubicacion = widget.postulacion.ubicacion.isNotEmpty
         ? widget.postulacion.ubicacion
         : "No especificada";
 
@@ -109,19 +141,15 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Detalle de Trabajo"),
+        title: Text(esServicio ? "Detalle de Servicio" : "Detalle de Trabajo"),
         backgroundColor: const Color(0xFF8B5CF6),
       ),
-
       body: cargando
           ? const Center(child: CircularProgressIndicator())
           : Padding(
               padding: const EdgeInsets.all(20),
               child: ListView(
                 children: [
-                  // -------------------------
-                  // TÍTULO
-                  // -------------------------
                   Text(
                     titulo,
                     style: const TextStyle(
@@ -129,20 +157,14 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Chip(
                     label: Text(estadoText),
                     backgroundColor: estadoColor.withOpacity(0.2),
                     labelStyle: TextStyle(color: estadoColor),
                   ),
-
                   const SizedBox(height: 20),
 
-                  // -------------------------
-                  // INFORMACIÓN DEL TRABAJO
-                  // -------------------------
                   _info("Categoría", categoria),
                   _info("Empleador", empleador),
                   _info("Ubicación", ubicacion),
@@ -150,12 +172,10 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
                   _info("Duración", duracion),
 
                   const SizedBox(height: 25),
-
                   const Text(
-                    "Escribe un mensaje para el empleador:",
+                    "Escribe un mensaje:",
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 10),
 
                   TextField(
@@ -169,9 +189,6 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
 
                   const SizedBox(height: 30),
 
-                  // -------------------------
-                  // BOTÓN DE POSTULAR
-                  // -------------------------
                   if (!yaPostuloBackend)
                     SizedBox(
                       width: double.infinity,
@@ -192,60 +209,90 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
                             return;
                           }
 
-                          // ---- ENVIAR LA POSTULACIÓN ----
-                          final ok = await postProv.crearPostulacion(
-                            trabajoId: widget.postulacion.trabajoId,
-                            userId: auth.userId!,
-                            mensaje: mensaje,
-                            titulo: titulo,
-                            categoria: categoria,
-                            empleador: empleador,
-                            ubicacion: ubicacion,
-                            presupuesto: presupuesto,
-                            duracion: duracion,
-                          );
+                          bool ok = false;
+
+                          // ✅ TRABAJO (OFERTAS EMPLEADOR) => SIEMPRE ESTA RUTA
+                          if (esTrabajo) {
+                            debugPrint(
+                              "🟣 POSTULAR TRABAJO => trabajoId=${widget.postulacion.trabajoId} userId=${auth.userId}",
+                            );
+
+                            ok = await postProv.crearPostulacion(
+                              trabajoId: widget.postulacion.trabajoId,
+                              userId: auth.userId!,
+                              mensaje: mensaje,
+                              titulo: titulo,
+                              categoria: categoria,
+                              empleador: empleador,
+                              ubicacion: ubicacion,
+                              presupuesto: presupuesto,
+                              duracion: duracion,
+                            );
+                          }
+                          // ✅ SERVICIO (solo si realmente lo usas)
+                          else if (esServicio) {
+                            final sid = widget.servicioId!;
+                            debugPrint(
+                              "🟠 POSTULAR SERVICIO => servicioId=$sid userId=${auth.userId}",
+                            );
+
+                            ok = await postProv.crearPostulacionServicio(
+                              servicioId: sid,
+                              userId: auth.userId!,
+                              mensaje: mensaje,
+                            );
+                          } else {
+                            // No es ni trabajo ni servicio (id faltante)
+                            ok = false;
+                          }
 
                           if (!ok) {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Error al postular ❌"),
+                              SnackBar(
+                                content: Text(esServicio
+                                    ? "Error al postular al servicio ❌"
+                                    : "Error al postular ❌"),
                               ),
                             );
                             return;
                           }
 
-                          // ---- GUARDAR NOTIFICACIÓN ----
-                          try {
-                            await http.post(
-                              Uri.parse("http://10.0.2.2:4000/api/notificaciones"),
-                              headers: {"Content-Type": "application/json"},
-                              body: jsonEncode({
-                                "userId": auth.userId,
-                                "trabajoId": widget.postulacion.trabajoId,
+                          // ✅ Notificaciones: tú las tenías solo para trabajo, las dejamos igual
+                          if (esTrabajo) {
+                            try {
+                              await http.post(
+                                Uri.parse("http://10.0.2.2:4000/api/notificaciones"),
+                                headers: {"Content-Type": "application/json"},
+                                body: jsonEncode({
+                                  "userId": auth.userId,
+                                  "trabajoId": widget.postulacion.trabajoId,
+                                  "titulo": titulo,
+                                  "mensaje": mensaje,
+                                }),
+                              );
+                            } catch (e) {
+                              print("❌ Error enviando notificación: $e");
+                            }
+
+                            notiProv.agregarNotificacionLocal({
+                              "id": DateTime.now().millisecondsSinceEpoch,
+                              "leida": false,
+                              "postulante": {
+                                "nombre": auth.userName ?? "Trabajador",
+                                "id": auth.userId,
+                              },
+                              "trabajo": {
                                 "titulo": titulo,
-                                "mensaje": mensaje,
-                              }),
-                            );
-                          } catch (e) {
-                            print("❌ Error enviando notificación: $e");
+                                "id": widget.postulacion.trabajoId,
+                              },
+                            });
                           }
 
-                          notiProv.agregarNotificacionLocal({
-                            "id": DateTime.now().millisecondsSinceEpoch,
-                            "leida": false,
-                            "postulante": {
-                              "nombre": auth.userName ?? "Trabajador",
-                              "id": auth.userId,
-                            },
-                            "trabajo": {
-                              "titulo": titulo,
-                              "id": widget.postulacion.trabajoId,
-                            },
-                          });
-
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Postulación enviada ✔"),
+                            SnackBar(
+                              content: Text(esServicio
+                                  ? "Postulación al servicio enviada ✔"
+                                  : "Postulación enviada ✔"),
                             ),
                           );
 
@@ -259,10 +306,12 @@ class _PostulacionDetalleScreenState extends State<PostulacionDetalleScreen> {
                     ),
 
                   if (yaPostuloBackend)
-                    const Text(
-                      "✔ Ya postulaste a este trabajo",
+                    Text(
+                      esServicio
+                          ? "✔ Ya postulaste a este servicio"
+                          : "✔ Ya postulaste a este trabajo",
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.green,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
