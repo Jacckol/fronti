@@ -280,6 +280,53 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   // ======================================================
+  // ✅ NUEVO: OBTENER POSTULACIONES DE UN SERVICIO (para Mis Publicaciones)
+  // GET /api/servicios/:servicioId/postulaciones
+  // Devuelve List<Map> para tu modal SIN tocar tu modelo Postulacion (trabajos).
+  // ======================================================
+  Future<List<Map<String, dynamic>>> obtenerPostulacionesServicio(int servicioId) async {
+    try {
+      if (servicioId <= 0) return [];
+
+      final url = Uri.parse("$baseUrl/api/servicios/$servicioId/postulaciones");
+
+      debugPrint("📥 GET obtenerPostulacionesServicio => $url");
+
+      final resp = await http.get(url);
+
+      debugPrint("📥 status=${resp.statusCode} body=${resp.body}");
+
+      if (resp.statusCode != 200) return [];
+
+      final decoded = jsonDecode(resp.body);
+      return _toMapList(decoded);
+    } catch (e) {
+      debugPrint("❌ ERROR obtenerPostulacionesServicio: $e");
+      return [];
+    }
+  }
+
+  // ======================================================
+  // ✅ Helper: soporta [] o {postulaciones: []} o {data: []}
+  // ======================================================
+  List<Map<String, dynamic>> _toMapList(dynamic decoded) {
+    List lista = [];
+
+    if (decoded is List) {
+      lista = decoded;
+    } else if (decoded is Map && decoded["postulaciones"] is List) {
+      lista = decoded["postulaciones"];
+    } else if (decoded is Map && decoded["data"] is List) {
+      lista = decoded["data"];
+    }
+
+    return lista
+        .where((e) => e is Map)
+        .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  // ======================================================
   // UTILIDADES LOCALES
   // ======================================================
   void actualizarEstadoLocal(int id, EstadoPostulacion nuevoEstado) {

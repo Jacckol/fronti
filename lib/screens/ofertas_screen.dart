@@ -2,10 +2,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-// 👉 Importar pantalla REAL de postulación
-import 'empleador/postular_oferta_screen.dart';
+// ✅ Importa TU pantalla nueva
+import 'empleador/postular_servicio_screen.dart';
 
-// 👉 Usa misma IP que MisPostulacionesScreen
 const String baseUrl = "http://10.0.2.2:4000";
 
 class OfertasScreen extends StatefulWidget {
@@ -20,15 +19,14 @@ class _OfertasScreenState extends State<OfertasScreen> {
   bool loading = true;
 
   // ============================
-  // Cargar servicios del trabajador
+  // Cargar servicios del trabajador (feed)
   // ============================
   Future<void> cargarTrabajos() async {
     try {
       final url = Uri.parse("$baseUrl/api/servicios");
-
       final resp = await http.get(url).timeout(const Duration(seconds: 10));
 
-      print("🟣 SERVICIOS DISPONIBLES → ${resp.statusCode} | ${resp.body}");
+      debugPrint("🟣 SERVICIOS DISPONIBLES → ${resp.statusCode}");
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
@@ -58,10 +56,11 @@ class _OfertasScreenState extends State<OfertasScreen> {
         setState(() => loading = false);
       }
     } catch (e) {
-      print("❌ Error cargando servicios: $e");
+      debugPrint("❌ Error cargando servicios: $e");
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text("Error de conexión: $e")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error de conexión: $e")),
+      );
       setState(() => loading = false);
     }
   }
@@ -72,9 +71,12 @@ class _OfertasScreenState extends State<OfertasScreen> {
     cargarTrabajos();
   }
 
-  // ============================
-  // Construcción UI
-  // ============================
+  int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is int) return v;
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -83,7 +85,6 @@ class _OfertasScreenState extends State<OfertasScreen> {
         backgroundColor: const Color(0xFF8B5CF6),
       ),
       backgroundColor: const Color(0xFFF9FAFB),
-
       body: loading
           ? const Center(child: CircularProgressIndicator())
           : trabajos.isEmpty
@@ -102,19 +103,16 @@ class _OfertasScreenState extends State<OfertasScreen> {
                       itemBuilder: (context, index) {
                         final t = trabajos[index];
 
+                        final int servicioId = _toInt(t["id"]);
                         final titulo = (t['titulo'] ?? 'Sin título').toString();
-                        final categoria =
-                            (t['categoria'] ?? 'General').toString();
-                        final descripcion =
-                            (t['descripcion'] ?? '').toString();
-                        final ubicacion =
-                            (t['ubicacion'] ?? 'Sin ubicación').toString();
-                        final salario =
-                            (t['presupuesto'] ?? 0).toString();
+                        final categoria = (t['categoria'] ?? 'General').toString();
+                        final descripcion = (t['descripcion'] ?? '').toString();
+                        final ubicacion = (t['ubicacion'] ?? 'Sin ubicación').toString();
+                        final salario = (t['presupuesto'] ?? 0).toString();
 
                         final publicadoPor = "Trabajador";
-                        final bool urgente = false; // servicios no tienen
-                        final postulaciones = 0; // servicios no tienen
+                        final bool urgente = false;
+                        final postulaciones = 0;
 
                         return Container(
                           margin: const EdgeInsets.only(bottom: 16),
@@ -133,10 +131,8 @@ class _OfertasScreenState extends State<OfertasScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              // ================= TITULO ==================
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
                                     child: Text(
@@ -150,18 +146,14 @@ class _OfertasScreenState extends State<OfertasScreen> {
                                   ),
                                   if (urgente)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                       decoration: BoxDecoration(
                                         color: Colors.red[600],
                                         borderRadius: BorderRadius.circular(8),
                                       ),
                                       child: const Text(
                                         'Urgente',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
+                                        style: TextStyle(color: Colors.white, fontSize: 12),
                                       ),
                                     ),
                                 ],
@@ -169,12 +161,10 @@ class _OfertasScreenState extends State<OfertasScreen> {
 
                               const SizedBox(height: 8),
 
-                              // ================= CATEGORÍA Y PUBLICADOR ==================
                               Row(
                                 children: [
                                   Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                     decoration: BoxDecoration(
                                       color: const Color(0xFFEDE9FE),
                                       borderRadius: BorderRadius.circular(8),
@@ -191,51 +181,34 @@ class _OfertasScreenState extends State<OfertasScreen> {
                                   const SizedBox(width: 8),
                                   Text(
                                     "Publicado por $publicadoPor",
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
+                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                                   ),
                                 ],
                               ),
 
                               const SizedBox(height: 8),
 
-                              // ================= DESCRIPCIÓN ==================
                               Text(
                                 descripcion,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: Color(0xFF374151),
-                                ),
+                                style: const TextStyle(fontSize: 14, color: Color(0xFF374151)),
                               ),
 
                               const SizedBox(height: 12),
 
-                              // ================= UBICACIÓN Y SALARIO ==================
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Row(
                                     children: [
-                                      const Icon(Icons.location_on_outlined,
-                                          size: 16, color: Colors.grey),
+                                      const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
                                       const SizedBox(width: 4),
-                                      Text(
-                                        ubicacion,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
+                                      Text(ubicacion, style: const TextStyle(fontSize: 13)),
                                     ],
                                   ),
                                   Row(
                                     children: [
-                                      const Icon(Icons.attach_money,
-                                          size: 16, color: Colors.grey),
-                                      Text(
-                                        salario,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
+                                      const Icon(Icons.attach_money, size: 16, color: Colors.grey),
+                                      Text(salario, style: const TextStyle(fontSize: 13)),
                                     ],
                                   ),
                                 ],
@@ -243,51 +216,46 @@ class _OfertasScreenState extends State<OfertasScreen> {
 
                               const SizedBox(height: 12),
 
-                              // ================= POSTULACIONES + BOTÓN ==================
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '$postulaciones postulaciones',
-                                    style: const TextStyle(
-                                      color: Colors.grey,
-                                      fontSize: 12,
-                                    ),
+                                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                                   ),
 
-                                  // ====== BOTÓN QUE ABRE DETALLES ======
+                                  // ✅ ABRE PostularServicioScreen
                                   ElevatedButton.icon(
-                                    onPressed: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => PostularOfertaScreen(
-                                            trabajoId: t["id"],
-                                            titulo: titulo,
-                                            categoria: categoria,
-                                            empresa: publicadoPor,
-                                            ubicacion: ubicacion,
-                                            salario: salario,
-                                            descripcion: descripcion,
-                                          ),
-                                        ),
-                                      );
-                                    },
+                                    onPressed: servicioId <= 0
+                                        ? null
+                                        : () async {
+                                            final ok = await Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => PostularServicioScreen(
+                                                  servicioId: servicioId,
+                                                  titulo: titulo,
+                                                  categoria: categoria,
+                                                  empresa: publicadoPor,
+                                                  ubicacion: ubicacion,
+                                                  salario: salario,
+                                                  descripcion: descripcion,
+                                                ),
+                                              ),
+                                            );
+
+                                            // si volvió true, recarga (opcional)
+                                            if (ok == true) cargarTrabajos();
+                                          },
                                     icon: const Icon(Icons.send, size: 16),
                                     label: const Text("Ver más"),
                                     style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          const Color(0xFF111827),
+                                      backgroundColor: const Color(0xFF111827),
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                       ),
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 16,
-                                        vertical: 10,
-                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                     ),
                                   ),
                                 ],

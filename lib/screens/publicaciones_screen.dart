@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:http/http.dart' as http;
 
 import '../providers/mis_servicios_provider.dart';
 import '../providers/auth_provider.dart';
@@ -19,6 +21,10 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
 
   // bloquear botones mientras acepta/rechaza
   final Set<int> _postulacionesCargando = {};
+
+  // ✅ cache local para NO depender de servicio["postulaciones"]
+  final Map<int, List<Map<String, dynamic>>> _cachePostulaciones = {};
+  final Map<int, int> _conteoPostulaciones = {};
 
   @override
   void initState() {
@@ -47,6 +53,29 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
         return false;
       }
     }).toList();
+
+    // ✅ RESETEO cache
+    _cachePostulaciones.clear();
+    _conteoPostulaciones.clear();
+
+    // ✅ IMPORTANTÍSIMO: si el backend ya manda postulaciones embebidas,
+    // aquí las usamos para que el contador NO sea 0.
+    for (final s in servicios) {
+      final sid = _toInt(s["id"]);
+      final raw = s["postulaciones"];
+
+      if (sid > 0 && raw is List) {
+        final lista = raw
+            .whereType<Map>()
+            .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+            .toList();
+
+        _cachePostulaciones[sid] = lista;
+        _conteoPostulaciones[sid] = lista.length;
+      } else if (sid > 0) {
+        _conteoPostulaciones[sid] = _conteoPostulaciones[sid] ?? 0;
+      }
+    }
 
     if (mounted) setState(() => cargando = false);
   }
@@ -88,7 +117,10 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
     final presupuesto = servicio["presupuesto"];
     final String descripcion = (servicio["descripcion"] ?? "").toString();
     final String fecha = (servicio["createdAt"] ?? "").toString();
-    final List postulaciones = (servicio["postulaciones"] ?? []) as List;
+
+    // ✅ contador: cache primero; si no hay, intenta leer del servicio embebido; si no, 0
+    final embedded = (servicio["postulaciones"] is List) ? (servicio["postulaciones"] as List).length : 0;
+    final int count = _conteoPostulaciones[servicioId] ?? embedded;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -201,14 +233,37 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                 label: const Text("Editar"),
               ),
 
+              // ✅ AHORA: usa embebido/cache; si no existe, pide al backend
               ElevatedButton.icon(
-                onPressed: () => _verPostulaciones(
-                  context: context,
-                  servicioId: servicioId,
-                  postulaciones: postulaciones,
-                ),
+                onPressed: () async {
+                  // 1) intenta usar lo embebido primero
+                  List<Map<String, dynamic>> lista = [];
+
+                  final raw = servicio["postulaciones"];
+                  if (raw is List) {
+                    lista = raw
+                        .whereType<Map>()
+                        .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                        .toList();
+
+                    _cachePostulaciones[servicioId] = lista;
+                    _conteoPostulaciones[servicioId] = lista.length;
+                    if (mounted) setState(() {});
+                  } else {
+                    // 2) si no vino embebido, usa backend
+                    lista = await _cargarPostulacionesServicio(servicioId);
+                  }
+
+                  if (!mounted) return;
+
+                  _verPostulaciones(
+                    context: context,
+                    servicioId: servicioId,
+                    postulaciones: lista,
+                  );
+                },
                 icon: const Icon(Icons.visibility, size: 18),
-                label: Text("Postulaciones (${postulaciones.length})"),
+                label: Text("Postulaciones ($count)"),
               ),
 
               ElevatedButton.icon(
@@ -255,6 +310,26 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
         ],
       ),
     );
+  }
+
+  // ============================================================
+  // ✅ CARGAR POSTULACIONES DEL SERVICIO (cache + contador)
+  // ============================================================
+  Future<List<Map<String, dynamic>>> _cargarPostulacionesServicio(int servicioId) async {
+    // cache
+    if (_cachePostulaciones.containsKey(servicioId)) {
+      return _cachePostulaciones[servicioId]!;
+    }
+
+    final postProv = context.read<PostulacionesProvider>();
+
+    final lista = await postProv.obtenerPostulacionesServicio(servicioId);
+
+    _cachePostulaciones[servicioId] = lista;
+    _conteoPostulaciones[servicioId] = lista.length;
+
+    if (mounted) setState(() {});
+    return lista;
   }
 
   // ============================================================
@@ -320,8 +395,12 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                               await _cambiarEstado(postId: postId, estado: estado);
 
                               if (!mounted) return;
-                              Navigator.pop(context2); // cierro el modal
-                              _cargarDatos(); // recargo servicios + postulaciones
+                              Navigator.pop(context2);
+
+                              // ✅ refresco backend y cache
+                              await _cargarDatos();
+                              _cachePostulaciones.remove(servicioId);
+                              _conteoPostulaciones.remove(servicioId);
                             },
                           );
                         },
@@ -352,7 +431,7 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
 
       final ok = await postProv.cambiarEstadoPostulacion(
         postulacionId: postId,
-        estado: estado, // "aceptado" / "rechazado"
+        estado: estado,
       );
 
       if (!mounted) return;
@@ -380,7 +459,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
     final bool loading = _postulacionesCargando.contains(postId);
 
     final postulante = p["postulante"] ?? {};
-    final String nombre = (postulante["nombre"] ?? postulante["email"] ?? p["empresa"] ?? "Usuario").toString();
+    final String nombre =
+        (postulante["nombre"] ?? postulante["email"] ?? p["empresa"] ?? "Usuario").toString();
     final String mensaje = (p["mensaje"] ?? "Sin mensaje").toString();
 
     return Container(
@@ -416,14 +496,22 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                 onPressed: (loading || estado == "aceptado") ? null : () => onEstado("aceptado"),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: loading
-                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text("Aceptar"),
               ),
               ElevatedButton(
                 onPressed: (loading || estado == "rechazado") ? null : () => onEstado("rechazado"),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: loading
-                    ? const SizedBox(height: 16, width: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const SizedBox(
+                        height: 16,
+                        width: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
                     : const Text("Rechazar"),
               ),
             ],
