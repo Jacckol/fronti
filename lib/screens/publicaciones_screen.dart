@@ -15,6 +15,17 @@ class PublicacionesScreen extends StatefulWidget {
   State<PublicacionesScreen> createState() => _PublicacionesScreenState();
 }
 
+// ✅ Item para lista con headers (fechas) + servicios
+class _ListItem {
+  final String? header;
+  final Map<String, dynamic>? servicio;
+
+  const _ListItem.header(this.header) : servicio = null;
+  const _ListItem.servicio(this.servicio) : header = null;
+
+  bool get isHeader => header != null;
+}
+
 class _PublicacionesScreenState extends State<PublicacionesScreen> {
   List<dynamic> servicios = [];
   bool cargando = true;
@@ -47,19 +58,28 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
     servicios = data.where((s) {
       if (s["createdAt"] == null) return false;
       try {
-        final fecha = DateTime.parse(s["createdAt"]);
+        final fecha = DateTime.parse(s["createdAt"]).toLocal();
         return ahora.difference(fecha).inHours < 24;
       } catch (_) {
         return false;
       }
     }).toList();
 
+    // ✅ ordenar del más nuevo al más viejo por createdAt
+    servicios.sort((a, b) {
+      final da = DateTime.tryParse((a["createdAt"] ?? "").toString())?.toLocal();
+      final db = DateTime.tryParse((b["createdAt"] ?? "").toString())?.toLocal();
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return db.compareTo(da);
+    });
+
     // ✅ RESETEO cache
     _cachePostulaciones.clear();
     _conteoPostulaciones.clear();
 
-    // ✅ IMPORTANTÍSIMO: si el backend ya manda postulaciones embebidas,
-    // aquí las usamos para que el contador NO sea 0.
+    // ✅ si el backend ya manda postulaciones embebidas, se usan para que el contador NO sea 0
     for (final s in servicios) {
       final sid = _toInt(s["id"]);
       final raw = s["postulaciones"];
@@ -80,8 +100,61 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
     if (mounted) setState(() => cargando = false);
   }
 
+  // ============================
+  // FECHAS → "Hoy / Ayer / dd/mm/yyyy"
+  // ============================
+  String _fechaHeader(DateTime d) {
+    final now = DateTime.now();
+    final hoy = DateTime(now.year, now.month, now.day);
+    final fecha = DateTime(d.year, d.month, d.day);
+
+    final diff = hoy.difference(fecha).inDays;
+    if (diff == 0) return "Hoy";
+    if (diff == 1) return "Ayer";
+
+    String dd = d.day.toString().padLeft(2, '0');
+    String mm = d.month.toString().padLeft(2, '0');
+    String yyyy = d.year.toString();
+    return "$dd/$mm/$yyyy";
+  }
+
+  // ✅ construir lista con headers por fecha
+  List<_ListItem> _buildItemsPorFecha(List<dynamic> lista) {
+    final items = <_ListItem>[];
+    String? lastKey;
+
+    for (final s in lista) {
+      final createdStr = (s["createdAt"] ?? "").toString();
+      final parsed = DateTime.tryParse(createdStr);
+
+      String key;
+      String label;
+
+      if (parsed == null) {
+        key = "SIN_FECHA";
+        label = "Sin fecha";
+      } else {
+        final d = parsed.toLocal();
+        key =
+            "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+        label = _fechaHeader(d);
+      }
+
+      if (key != lastKey) {
+        items.add(_ListItem.header(label));
+        lastKey = key;
+      }
+
+      items.add(_ListItem.servicio(Map<String, dynamic>.from(s)));
+    }
+
+    return items;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final items = _buildItemsPorFecha(servicios);
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F5F7),
       appBar: AppBar(
@@ -100,8 +173,27 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: servicios.length,
-                  itemBuilder: (_, i) => _cardPublicacion(context, servicios[i]),
+                  itemCount: items.length,
+                  itemBuilder: (_, i) {
+                    final it = items[i];
+
+                    // ✅ HEADER FECHA
+                    if (it.isHeader) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 10),
+                        child: Text(
+                          it.header!,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return _cardPublicacion(context, it.servicio!);
+                  },
                 ),
     );
   }
@@ -119,7 +211,9 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
     final String fecha = (servicio["createdAt"] ?? "").toString();
 
     // ✅ contador: cache primero; si no hay, intenta leer del servicio embebido; si no, 0
-    final embedded = (servicio["postulaciones"] is List) ? (servicio["postulaciones"] as List).length : 0;
+    final embedded = (servicio["postulaciones"] is List)
+        ? (servicio["postulaciones"] as List).length
+        : 0;
     final int count = _conteoPostulaciones[servicioId] ?? embedded;
 
     return Container(
@@ -233,24 +327,23 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                 label: const Text("Editar"),
               ),
 
-              // ✅ AHORA: usa embebido/cache; si no existe, pide al backend
+              // ✅ usa embebido/cache; si no existe, pide al backend
               ElevatedButton.icon(
                 onPressed: () async {
-                  // 1) intenta usar lo embebido primero
                   List<Map<String, dynamic>> lista = [];
 
                   final raw = servicio["postulaciones"];
                   if (raw is List) {
                     lista = raw
                         .whereType<Map>()
-                        .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e))
+                        .map<Map<String, dynamic>>(
+                            (e) => Map<String, dynamic>.from(e))
                         .toList();
 
                     _cachePostulaciones[servicioId] = lista;
                     _conteoPostulaciones[servicioId] = lista.length;
                     if (mounted) setState(() {});
                   } else {
-                    // 2) si no vino embebido, usa backend
                     lista = await _cargarPostulacionesServicio(servicioId);
                   }
 
@@ -272,7 +365,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                     context: context,
                     builder: (_) => AlertDialog(
                       title: const Text("Eliminar servicio"),
-                      content: const Text("¿Seguro deseas eliminar esta publicación?"),
+                      content: const Text(
+                          "¿Seguro deseas eliminar esta publicación?"),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(context, false),
@@ -293,7 +387,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
 
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text(ok ? "Servicio eliminado" : "No se pudo eliminar ❌"),
+                        content: Text(
+                            ok ? "Servicio eliminado" : "No se pudo eliminar ❌"),
                         backgroundColor: ok ? Colors.red : Colors.black,
                       ),
                     );
@@ -315,14 +410,13 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
   // ============================================================
   // ✅ CARGAR POSTULACIONES DEL SERVICIO (cache + contador)
   // ============================================================
-  Future<List<Map<String, dynamic>>> _cargarPostulacionesServicio(int servicioId) async {
-    // cache
+  Future<List<Map<String, dynamic>>> _cargarPostulacionesServicio(
+      int servicioId) async {
     if (_cachePostulaciones.containsKey(servicioId)) {
       return _cachePostulaciones[servicioId]!;
     }
 
     final postProv = context.read<PostulacionesProvider>();
-
     final lista = await postProv.obtenerPostulacionesServicio(servicioId);
 
     _cachePostulaciones[servicioId] = lista;
@@ -370,11 +464,11 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       "Postulaciones",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                   const SizedBox(height: 10),
-
                   if (postulaciones.isEmpty)
                     const Expanded(
                       child: Center(child: Text("Aún no hay postulaciones")),
@@ -397,7 +491,6 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                               if (!mounted) return;
                               Navigator.pop(context2);
 
-                              // ✅ refresco backend y cache
                               await _cargarDatos();
                               _cachePostulaciones.remove(servicioId);
                               _conteoPostulaciones.remove(servicioId);
@@ -460,7 +553,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
 
     final postulante = p["postulante"] ?? {};
     final String nombre =
-        (postulante["nombre"] ?? postulante["email"] ?? p["empresa"] ?? "Usuario").toString();
+        (postulante["nombre"] ?? postulante["email"] ?? p["empresa"] ?? "Usuario")
+            .toString();
     final String mensaje = (p["mensaje"] ?? "Sin mensaje").toString();
 
     return Container(
@@ -479,7 +573,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
               Expanded(
                 child: Text(
                   nombre,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                  style:
+                      const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
                 ),
               ),
               _estadoChip(estado),
@@ -493,7 +588,9 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
             runSpacing: 8,
             children: [
               ElevatedButton(
-                onPressed: (loading || estado == "aceptado") ? null : () => onEstado("aceptado"),
+                onPressed: (loading || estado == "aceptado")
+                    ? null
+                    : () => onEstado("aceptado"),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                 child: loading
                     ? const SizedBox(
@@ -504,7 +601,9 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
                     : const Text("Aceptar"),
               ),
               ElevatedButton(
-                onPressed: (loading || estado == "rechazado") ? null : () => onEstado("rechazado"),
+                onPressed: (loading || estado == "rechazado")
+                    ? null
+                    : () => onEstado("rechazado"),
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
                 child: loading
                     ? const SizedBox(
@@ -569,7 +668,8 @@ class _PublicacionesScreenState extends State<PublicacionesScreen> {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: textColor),
+        style: TextStyle(
+            fontSize: 11, fontWeight: FontWeight.w500, color: textColor),
       ),
     );
   }

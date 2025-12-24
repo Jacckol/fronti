@@ -8,18 +8,14 @@ import 'package:http/http.dart' as http;
 enum EstadoPostulacion { pendiente, aceptada, rechazada }
 
 EstadoPostulacion estadoFromString(String estado) {
-  switch (estado) {
-    case "aceptado":
-      return EstadoPostulacion.aceptada;
-    case "rechazado":
-      return EstadoPostulacion.rechazada;
-    default:
-      return EstadoPostulacion.pendiente;
-  }
+  final s = estado.toLowerCase().trim();
+  if (s.contains("acept")) return EstadoPostulacion.aceptada;   // aceptado/aceptada
+  if (s.contains("rech")) return EstadoPostulacion.rechazada;   // rechazado/rechazada
+  return EstadoPostulacion.pendiente;
 }
 
 // ======================================================
-// MODELO POSTULACIÓN (para TRABAJOS - no rompe tu app)
+// MODELO POSTULACIÓN (TRABAJOS) - sin romper tu app
 // ======================================================
 class Postulacion {
   final int id;
@@ -31,7 +27,10 @@ class Postulacion {
   final double presupuesto;
   final String duracion;
   final String mensaje;
+
+  // ✅ ESTA ES TU FECHA REAL (se usa para headers y expiración)
   final DateTime fecha;
+
   EstadoPostulacion estado;
 
   Postulacion({
@@ -48,8 +47,22 @@ class Postulacion {
     required this.estado,
   });
 
+  // ✅ parsea fecha bien para evitar "Ayer" por zona horaria
+  static DateTime _parseDate(dynamic v) {
+    if (v == null) return DateTime.now();
+    final raw = v.toString().trim();
+    if (raw.isEmpty) return DateTime.now();
+
+    // Si NO trae Z o +hh:mm, lo tratamos como UTC y le ponemos Z
+    final hasTZ = RegExp(r'(Z|[+-]\d{2}:\d{2})$').hasMatch(raw);
+    final normalized = hasTZ ? raw : '${raw}Z';
+
+    final dt = DateTime.tryParse(normalized);
+    return (dt ?? DateTime.now()).toLocal();
+  }
+
   factory Postulacion.fromJson(Map<String, dynamic> json) {
-    // ✅ SOLO AUMENTO: soporta "trabajo" o "Trabajo"
+    // ✅ soporta "trabajo" o "Trabajo"
     final trabajo = (json["trabajo"] ?? json["Trabajo"] ?? {}) as Map;
 
     return Postulacion(
@@ -57,12 +70,21 @@ class Postulacion {
       trabajoId: _toInt(trabajo["id"]),
       titulo: (trabajo["titulo"] ?? "Sin título").toString(),
       categoria: (trabajo["categoria"] ?? "General").toString(),
-      empleador: "Empleador",
+      empleador: (json["empleador"] ?? "Empleador").toString(),
       ubicacion: (trabajo["ubicacion"] ?? "").toString(),
-      presupuesto: 0,
-      duracion: "",
+      presupuesto: _toDouble(trabajo["presupuesto"] ?? json["presupuesto"] ?? 0),
+      duracion: (trabajo["duracion"] ?? json["duracion"] ?? "").toString(),
       mensaje: (json["mensaje"] ?? "").toString(),
-      fecha: DateTime.tryParse((json["createdAt"] ?? "").toString()) ?? DateTime.now(),
+
+      // ✅ CLAVE: aquí agarramos createdAt real del backend
+      fecha: _parseDate(
+        json["createdAt"] ??
+            json["fecha"] ??
+            json["created_at"] ??
+            json["fechaCreacion"] ??
+            json["fecha_postulacion"],
+      ),
+
       estado: estadoFromString((json["estado"] ?? "pendiente").toString()),
     );
   }
@@ -71,6 +93,13 @@ class Postulacion {
     if (v == null) return 0;
     if (v is int) return v;
     return int.tryParse(v.toString()) ?? 0;
+  }
+
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is double) return v;
+    if (v is int) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
   }
 }
 
@@ -82,9 +111,6 @@ class PostulacionesProvider extends ChangeNotifier {
 
   List<Postulacion> _postulaciones = [];
 
-  // ======================================================
-  // GETTERS
-  // ======================================================
   List<Postulacion> get todas => _postulaciones;
 
   List<Postulacion> get pendientes =>
@@ -101,7 +127,6 @@ class PostulacionesProvider extends ChangeNotifier {
   int get totalRechazadas => rechazadas.length;
 
   // ======================================================
-  // 🔥 CARGAR POSTULACIONES (TRABAJOS) POR USUARIO (TRABAJADOR)
   // GET /api/postulaciones/usuario/:userId
   // ======================================================
   Future<void> cargarPostulaciones(int userId) async {
@@ -115,23 +140,18 @@ class PostulacionesProvider extends ChangeNotifier {
       if (resp.statusCode == 200) {
         final decoded = jsonDecode(resp.body);
 
-        // ✅ SOLO AUMENTO:
-        // soporta:
-        // A) backend devuelve lista directa: [ ... ]
-        // B) backend devuelve objeto: { "postulaciones": [ ... ] }
         List lista = [];
-
         if (decoded is List) {
           lista = decoded;
         } else if (decoded is Map && decoded["postulaciones"] is List) {
           lista = decoded["postulaciones"];
         } else if (decoded is Map && decoded["data"] is List) {
-          // por si tu backend usa "data"
           lista = decoded["data"];
         }
 
         _postulaciones = lista
-            .map<Postulacion>((p) => Postulacion.fromJson(p as Map<String, dynamic>))
+            .where((e) => e is Map)
+            .map<Postulacion>((p) => Postulacion.fromJson(Map<String, dynamic>.from(p)))
             .toList();
       } else {
         _postulaciones = [];
@@ -144,13 +164,11 @@ class PostulacionesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // alias
   Future<void> cargarDesdeBackend(int userId) async {
     await cargarPostulaciones(userId);
   }
 
   // ======================================================
-  // ✅ CREAR POSTULACIÓN A TRABAJO (TRABAJADOR → EMPLEADOR)
   // POST /api/postulaciones
   // ======================================================
   Future<bool> crearPostulacion({
@@ -158,7 +176,6 @@ class PostulacionesProvider extends ChangeNotifier {
     required int userId,
     required String mensaje,
 
-    // Campos UI inmediata (no afectan backend)
     required String titulo,
     required String categoria,
     required String empleador,
@@ -190,7 +207,10 @@ class PostulacionesProvider extends ChangeNotifier {
           presupuesto: presupuesto,
           duracion: duracion,
           mensaje: mensaje,
+
+          // ✅ fecha local
           fecha: DateTime.now(),
+
           estado: EstadoPostulacion.pendiente,
         );
 
@@ -208,9 +228,7 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   // ======================================================
-  // ✅ CREAR POSTULACIÓN A SERVICIO (EMPLEADOR → TRABAJADOR)
   // POST /api/servicios/:servicioId/postulaciones
-  // body: { userId, mensaje }
   // ======================================================
   Future<bool> crearPostulacionServicio({
     required int servicioId,
@@ -226,9 +244,6 @@ class PostulacionesProvider extends ChangeNotifier {
 
       final url = Uri.parse("$baseUrl/api/servicios/$servicioId/postulaciones");
 
-      debugPrint("📤 POST crearPostulacionServicio => $url");
-      debugPrint("📤 servicioId=$servicioId userId=$userId mensaje_len=${mensaje.length}");
-
       final resp = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
@@ -239,12 +254,7 @@ class PostulacionesProvider extends ChangeNotifier {
       );
 
       debugPrint("📥 crearPostulacionServicio status: ${resp.statusCode} body: ${resp.body}");
-
-      if (resp.statusCode == 201) {
-        return true;
-      }
-
-      return false;
+      return resp.statusCode == 201;
     } catch (e) {
       debugPrint("❌ ERROR crearPostulacionServicio: $e");
       return false;
@@ -252,9 +262,7 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   // ======================================================
-  // ✅ CAMBIAR ESTADO POSTULACIÓN DE SERVICIO
   // PUT /api/servicios/postulaciones/:id/estado
-  // body: { estado: "aceptado" | "rechazado" }
   // ======================================================
   Future<bool> cambiarEstadoPostulacion({
     required int postulacionId,
@@ -280,21 +288,14 @@ class PostulacionesProvider extends ChangeNotifier {
   }
 
   // ======================================================
-  // ✅ NUEVO: OBTENER POSTULACIONES DE UN SERVICIO (para Mis Publicaciones)
   // GET /api/servicios/:servicioId/postulaciones
-  // Devuelve List<Map> para tu modal SIN tocar tu modelo Postulacion (trabajos).
   // ======================================================
   Future<List<Map<String, dynamic>>> obtenerPostulacionesServicio(int servicioId) async {
     try {
       if (servicioId <= 0) return [];
 
       final url = Uri.parse("$baseUrl/api/servicios/$servicioId/postulaciones");
-
-      debugPrint("📥 GET obtenerPostulacionesServicio => $url");
-
       final resp = await http.get(url);
-
-      debugPrint("📥 status=${resp.statusCode} body=${resp.body}");
 
       if (resp.statusCode != 200) return [];
 
@@ -306,9 +307,6 @@ class PostulacionesProvider extends ChangeNotifier {
     }
   }
 
-  // ======================================================
-  // ✅ Helper: soporta [] o {postulaciones: []} o {data: []}
-  // ======================================================
   List<Map<String, dynamic>> _toMapList(dynamic decoded) {
     List lista = [];
 

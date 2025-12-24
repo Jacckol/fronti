@@ -7,12 +7,9 @@ import 'package:http/http.dart' as http;
 import '../../providers/auth_provider.dart';
 import 'ver_postulaciones_screen.dart';
 
-
 // 👉 EMULADOR ANDROID
 const String baseUrl = "http://10.0.2.2:4000";
 
-// 👉 CELULAR FÍSICO (solo referencia)
-// const String baseUrl = "http://192.168.100.22:4000";
 class MisPublicacionesScreen extends StatefulWidget {
   const MisPublicacionesScreen({super.key});
 
@@ -20,9 +17,57 @@ class MisPublicacionesScreen extends StatefulWidget {
   State<MisPublicacionesScreen> createState() => _MisPublicacionesScreenState();
 }
 
+// ✅ Item para lista con headers (fechas) + trabajos
+class _ListItem {
+  final String? header;
+  final Map? trabajo;
+
+  const _ListItem.header(this.header) : trabajo = null;
+  const _ListItem.trabajo(this.trabajo) : header = null;
+
+  bool get isHeader => header != null;
+}
+
 class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
   List trabajos = [];
   bool loading = true;
+
+  // ✅ AQUÍ CAMBIAS EL TIEMPO (1 = 24h)
+  static const int diasExpiracion = 1;
+
+  // ============================
+  // HELPERS FECHA / EXPIRACIÓN
+  // ============================
+  DateTime? _createdLocal(Map t) {
+    final createdStr = (t["createdAt"] ?? "").toString();
+    final dt = DateTime.tryParse(createdStr);
+    if (dt == null) return null;
+    return dt.isUtc ? dt.toLocal() : dt;
+  }
+
+  String _expiracionLabel(Map t) {
+    final created = _createdLocal(t);
+    if (created == null) return "⏳ Sin fecha (no puedo calcular)";
+
+    final vence = created.add(Duration(days: diasExpiracion));
+    final now = DateTime.now();
+    final diff = vence.difference(now);
+
+    // si ya venció (por si acaso)
+    if (diff.isNegative) return "⛔ Publicación vencida";
+
+    final duracionTxt = diasExpiracion == 1 ? "24h" : "${diasExpiracion}d";
+
+    // mostrar restante bonito
+    if (diff.inHours >= 1) {
+      final h = diff.inHours;
+      final m = diff.inMinutes % 60;
+      return "⏳ Duración $duracionTxt · Quedan ${h}h ${m}m";
+    } else {
+      final m = diff.inMinutes;
+      return "⏳ Duración $duracionTxt · Quedan ${m}m";
+    }
+  }
 
   // ============================
   // CARGAR TRABAJOS DEL EMPLEADOR
@@ -30,21 +75,45 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
   Future<void> cargarTrabajos() async {
     try {
       final auth = Provider.of<AuthProvider>(context, listen: false);
-
-      final url = Uri.parse(
-        "$baseUrl/api/trabajos/mios/${auth.userId}",
-      );
+      final url = Uri.parse("$baseUrl/api/trabajos/mios/${auth.userId}");
 
       final resp = await http.get(url).timeout(const Duration(seconds: 10));
-
       print("🟣 MIS TRABAJOS → ${resp.statusCode} | ${resp.body}");
 
       if (resp.statusCode == 200) {
         final data = jsonDecode(resp.body);
+        final List lista = (data["trabajos"] ?? []) as List;
+
+        final ahoraLocal = DateTime.now();
+        final ahoraUtc = DateTime.now().toUtc();
+
+        // ✅ 1) FILTRAR: ocultar > 1 día (24h) (si tiene createdAt)
+        final filtrados = lista.where((t) {
+          final createdStr = (t["createdAt"] ?? "").toString();
+          final created = DateTime.tryParse(createdStr);
+
+          // Si no viene createdAt, NO lo oculto (para no perder publicaciones por un bug)
+          if (created == null) return true;
+
+          final ahora = created.isUtc ? ahoraUtc : ahoraLocal;
+
+          // ✅ con diasExpiracion=1 => solo < 24h
+          return ahora.difference(created).inDays < diasExpiracion;
+        }).toList();
+
+        // ✅ ordenar del más nuevo al más viejo por createdAt (si existe)
+        filtrados.sort((a, b) {
+          final da = DateTime.tryParse((a["createdAt"] ?? "").toString());
+          final db = DateTime.tryParse((b["createdAt"] ?? "").toString());
+          if (da == null && db == null) return 0;
+          if (da == null) return 1;
+          if (db == null) return -1;
+          return db.compareTo(da);
+        });
 
         if (!mounted) return;
         setState(() {
-          trabajos = data["trabajos"] ?? [];
+          trabajos = filtrados;
           loading = false;
         });
       } else {
@@ -52,20 +121,15 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text("Error ${resp.statusCode}: ${resp.body}")),
         );
-        setState(() {
-          loading = false;
-        });
+        setState(() => loading = false);
       }
     } catch (e) {
       print("❌ Error cargando trabajos: $e");
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Error de conexión: $e")),
       );
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
@@ -74,7 +138,6 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
   // ============================
   Future<void> eliminarTrabajo(int id) async {
     final url = Uri.parse("$baseUrl/api/trabajos/$id");
-
     final resp = await http.delete(url);
 
     if (resp.statusCode == 200) {
@@ -103,10 +166,7 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
               Navigator.pop(context);
               eliminarTrabajo(id);
             },
-            child: const Text(
-              "Eliminar",
-              style: TextStyle(color: Colors.red),
-            ),
+            child: const Text("Eliminar", style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -154,8 +214,87 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
     cargarTrabajos();
   }
 
+  // ============================
+  // FECHAS → "Hoy / Ayer / dd/mm/yyyy"
+  // ============================
+  String _fechaHeader(DateTime d) {
+    final now = DateTime.now();
+    final hoy = DateTime(now.year, now.month, now.day);
+    final fecha = DateTime(d.year, d.month, d.day);
+
+    final diff = hoy.difference(fecha).inDays;
+    if (diff == 0) return "Hoy";
+    if (diff == 1) return "Ayer";
+
+    String dd = d.day.toString().padLeft(2, '0');
+    String mm = d.month.toString().padLeft(2, '0');
+    String yyyy = d.year.toString();
+    return "$dd/$mm/$yyyy";
+  }
+
+  // ✅ CONSTRUIR LISTA CON HEADERS POR FECHA
+  List<_ListItem> _buildItemsPorFecha(List lista) {
+    final items = <_ListItem>[];
+    String? lastKey;
+
+    for (final t in lista) {
+      final createdStr = (t["createdAt"] ?? "").toString();
+      final parsed = DateTime.tryParse(createdStr);
+
+      String key;
+      String label;
+
+      if (parsed == null) {
+        key = "SIN_FECHA";
+        label = "Sin fecha";
+      } else {
+        final d = parsed.toLocal();
+        key =
+            "${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+        label = _fechaHeader(d);
+      }
+
+      if (key != lastKey) {
+        items.add(_ListItem.header(label));
+        lastKey = key;
+      }
+
+      items.add(_ListItem.trabajo(t));
+    }
+
+    return items;
+  }
+
+  Widget _chipInfo(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7E0),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFDE68A)),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF92400E),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final btnStyle = TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      minimumSize: const Size(0, 34),
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      visualDensity: VisualDensity.compact,
+    );
+
+    final items = _buildItemsPorFecha(trabajos);
+
     return Scaffold(
       backgroundColor: const Color(0xffF3F0FF),
       appBar: AppBar(
@@ -168,9 +307,26 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
               ? const Center(child: Text("No tienes publicaciones"))
               : ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  itemCount: trabajos.length,
+                  itemCount: items.length,
                   itemBuilder: (_, i) {
-                    final t = trabajos[i];
+                    final it = items[i];
+
+                    // ✅ HEADER FECHA
+                    if (it.isHeader) {
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6, bottom: 10),
+                        child: Text(
+                          it.header!,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
+                        ),
+                      );
+                    }
+
+                    final t = it.trabajo!;
                     final estado = (t["estado"] ?? "activo").toString();
 
                     Color colorEstado = estado == "finalizado"
@@ -178,6 +334,9 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
                         : estado == "pausado"
                             ? Colors.orange
                             : Colors.blue;
+
+                    // ✅ NUEVO: texto de expiración / tiempo restante
+                    final expiraTxt = _expiracionLabel(t);
 
                     return Container(
                       padding: const EdgeInsets.all(16),
@@ -197,15 +356,19 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                t["titulo"] ?? "",
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              Expanded(
+                                child: Text(
+                                  (t["titulo"] ?? "").toString(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
+                              const SizedBox(width: 10),
                               Container(
                                 padding: const EdgeInsets.symmetric(
                                   horizontal: 10,
@@ -226,9 +389,16 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 6),
+
+                          const SizedBox(height: 8),
+
+                          // ✅ NUEVO: CHIP CON DURACIÓN / RESTANTE
+                          _chipInfo(expiraTxt),
+
+                          const SizedBox(height: 10),
+
                           Text(
-                            t["descripcion"] ?? "",
+                            (t["descripcion"] ?? "").toString(),
                             style: TextStyle(
                               color: Colors.grey.shade700,
                               fontSize: 14,
@@ -237,84 +407,84 @@ class _MisPublicacionesScreenState extends State<MisPublicacionesScreen> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              const Icon(
-                                Icons.place,
-                                size: 16,
-                                color: Colors.deepPurple,
-                              ),
+                              const Icon(Icons.place,
+                                  size: 16, color: Colors.deepPurple),
                               const SizedBox(width: 4),
-                              Text(t["ubicacion"] ?? ""),
-                              const SizedBox(width: 20),
-                              const Icon(
-                                Icons.attach_money,
-                                size: 16,
-                                color: Colors.green,
+                              Flexible(
+                                child: Text((t["ubicacion"] ?? "").toString()),
                               ),
+                              const SizedBox(width: 20),
+                              const Icon(Icons.attach_money,
+                                  size: 16, color: Colors.green),
                               const SizedBox(width: 4),
                               Text("${t["salario"] ?? ""}"),
                             ],
                           ),
                           const SizedBox(height: 14),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              // VER POSTULACIONES
-                              TextButton(
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => VerPostulacionesScreen(
-                                        trabajoId: t["id"],
-                                        tituloTrabajo: t["titulo"] ?? "",
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              spacing: 8,
+                              runSpacing: 6,
+                              children: [
+                                TextButton(
+                                  style: btnStyle,
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => VerPostulacionesScreen(
+                                          trabajoId: t["id"],
+                                          tituloTrabajo: t["titulo"] ?? "",
+                                        ),
                                       ),
+                                    );
+                                  },
+                                  child: const Text("Ver postulaciones"),
+                                ),
+                                PopupMenuButton<String>(
+                                  onSelected: (v) => cambiarEstado(t["id"], v),
+                                  itemBuilder: (_) => const [
+                                    PopupMenuItem(
+                                      value: "activo",
+                                      child: Text("Marcar activo"),
                                     ),
-                                  );
-                                },
-                                child: const Text("Ver postulaciones"),
-                              ),
-                              PopupMenuButton<String>(
-                                onSelected: (v) => cambiarEstado(t["id"], v),
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: "activo",
-                                    child: Text("Marcar activo"),
+                                    PopupMenuItem(
+                                      value: "pausado",
+                                      child: Text("Pausar publicación"),
+                                    ),
+                                    PopupMenuItem(
+                                      value: "finalizado",
+                                      child: Text("Marcar como finalizado"),
+                                    ),
+                                  ],
+                                  icon: const Icon(Icons.more_vert),
+                                ),
+                                TextButton.icon(
+                                  style: btnStyle,
+                                  onPressed: () => editarTrabajo(t),
+                                  icon: const Icon(Icons.edit,
+                                      color: Colors.blue, size: 18),
+                                  label: const Text(
+                                    "Editar",
+                                    style: TextStyle(color: Colors.blue),
                                   ),
-                                  PopupMenuItem(
-                                    value: "pausado",
-                                    child: Text("Pausar publicación"),
+                                ),
+                                TextButton.icon(
+                                  style: btnStyle,
+                                  onPressed: () => confirmarEliminar(t["id"]),
+                                  icon: const Icon(Icons.delete,
+                                      color: Colors.red, size: 18),
+                                  label: const Text(
+                                    "Eliminar",
+                                    style: TextStyle(color: Colors.red),
                                   ),
-                                  PopupMenuItem(
-                                    value: "finalizado",
-                                    child: Text("Marcar como finalizado"),
-                                  ),
-                                ],
-                                child: const Icon(Icons.more_vert),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => editarTrabajo(t),
-                                icon: const Icon(
-                                  Icons.edit,
-                                  color: Colors.blue,
                                 ),
-                                label: const Text(
-                                  "Editar",
-                                  style: TextStyle(color: Colors.blue),
-                                ),
-                              ),
-                              TextButton.icon(
-                                onPressed: () => confirmarEliminar(t["id"]),
-                                icon: const Icon(
-                                  Icons.delete,
-                                  color: Colors.red,
-                                ),
-                                label: const Text(
-                                  "Eliminar",
-                                  style: TextStyle(color: Colors.red),
-                                ),
-                              ),
-                            ],
-                          )
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     );
@@ -354,9 +524,7 @@ class _EditarTrabajoScreenState extends State<EditarTrabajoScreen> {
   }
 
   Future<void> actualizar() async {
-    final url = Uri.parse(
-      "$baseUrl/api/trabajos/${widget.trabajo["id"]}",
-    );
+    final url = Uri.parse("$baseUrl/api/trabajos/${widget.trabajo["id"]}");
 
     final body = {
       "titulo": tituloCtrl.text.trim(),
@@ -384,17 +552,13 @@ class _EditarTrabajoScreenState extends State<EditarTrabajoScreen> {
     }
   }
 
-  Widget inputBox(String label, TextEditingController c,
-      {int maxLines = 1}) {
+  Widget inputBox(String label, TextEditingController c, {int maxLines = 1}) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w500,
-          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 6),
         Container(
@@ -447,14 +611,9 @@ class _EditarTrabajoScreenState extends State<EditarTrabajoScreen> {
                 isExpanded: true,
                 value: categoria.isEmpty ? null : categoria,
                 underline: const SizedBox(),
-                items: const [
-                  "Electricidad",
-                  "Plomería",
-                  "Pintura",
-                  "Limpieza"
-                ].map(
-                  (c) => DropdownMenuItem(value: c, child: Text(c)),
-                ).toList(),
+                items: const ["Electricidad", "Plomería", "Pintura", "Limpieza"]
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
                 onChanged: (v) => setState(() => categoria = v ?? ""),
               ),
             ),
@@ -471,10 +630,7 @@ class _EditarTrabajoScreenState extends State<EditarTrabajoScreen> {
                 child: const Center(
                   child: Text(
                     "Guardar Cambios",
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(color: Colors.white, fontSize: 18),
                   ),
                 ),
               ),
